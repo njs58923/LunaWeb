@@ -20,6 +20,8 @@
       gap: 10px;
       align-items: center;
       box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 2;
     }
     #urlInput {
       flex: 1;
@@ -38,87 +40,39 @@
       font-size: 14px;
       transition: background 0.2s;
     }
-    button:hover {
-      background: #666;
-    }
-    canvas {
-      display: block;
-      flex: 1;
-    }
+    button:hover { background: #666; }
+    canvas { display: block; flex: 1; }
 
     /* --- DevTools --- */
     #devPanel {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 0; left: 0; right: 0;
       background: rgba(20,20,20,0.95);
       color: #eee;
       font-family: Consolas, monospace;
       font-size: 13px;
       padding: 8px;
-      max-height: 330px;
+      max-height: 340px;
       overflow-y: auto;
       display: none;
       z-index: 1000;
       border-top: 2px solid #444;
     }
     #devPanelHeader {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-      align-items: center;
+      display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap;
     }
-    .devTabBtn {
-      font-size: 12px;
-      padding: 4px 10px;
-      background: #333;
-      border: none;
-      border-radius: 4px;
-    }
-    .devTabBtn:hover {
-      background: #555;
-    }
-    #inspectorView, #statusView {
-      margin-top: 6px;
-    }
-    #statusView {
-      display: none; /* Oculto por defecto, tab "Inspector" se ve primero */
-    }
-    /* Inspector Tree */
-    #treeView ul {
-      list-style: none;
-      margin-left: 20px;
-      padding-left: 10px;
-      border-left: 1px dotted #555;
-    }
-    #treeView li {
-      margin: 4px 0;
-    }
-    #treeView span {
-      cursor: text;
-    }
-    #treeView .attrLabel {
-      margin-left: 4px;
-    }
-    #treeView .attrInput {
-      outline: 1px dashed transparent;
-      padding: 0 3px;
-      border-radius: 3px;
-      display: inline-block;
-      white-space: pre;
-      margin-right: 2px;
-    }
-    #treeView .attrInput:focus {
-      outline: 1px dashed #66f;
-      background: #222;
-    }
-    #treeView .actionBtn {
-      margin-left: 8px;
-      font-size: 11px;
-      padding: 1px 4px;
-      cursor: pointer;
-    }
+    .devTabBtn { font-size: 12px; padding: 4px 10px; background: #333; border: none; border-radius: 4px; }
+    .devTabBtn:hover { background: #555; }
+    #inspectorView, #statusView { margin-top: 6px; }
+    #statusView { display: none; }
+    #treeView ul { list-style: none; margin-left: 20px; padding-left: 10px; border-left: 1px dotted #555; }
+    #treeView li { margin: 4px 0; }
+    #treeView span { cursor: text; }
+    #treeView .attrLabel { margin-left: 4px; }
+    #treeView .attrInput { outline: 1px dashed transparent; padding: 0 3px; border-radius: 3px; display: inline-block; white-space: pre; margin-right: 2px; }
+    #treeView .attrInput:focus { outline: 1px dashed #66f; background: #222; }
+    #treeView .actionBtn { margin-left: 8px; font-size: 11px; padding: 1px 4px; cursor: pointer; }
+    #smallNote { opacity: 0.7; font-size: 11px; margin-left: auto; }
   </style>
   <!-- Import map para Three.js -->
   <script type="importmap">
@@ -133,9 +87,11 @@
 <body>
   <!-- Barra Superior -->
   <div id="toolbar">
-    <input id="urlInput" type="text" placeholder="Ingrese URL de HSML" value="/static/main.hsml">
+    <input id="urlInput" type="text" placeholder="Ingrese URL de HSML o pegue el HSML aquí" value="/static/main.hsml">
     <button id="loadButton">Cargar HSML</button>
     <button id="toggleDevPanel">Mostrar DevTools</button>
+    <button id="exportBtn">Exportar HSML</button>
+    <span id="smallNote">WASD + mouse para cámara libre • R para recargar</span>
   </div>
 
   <!-- Lienzo principal de Three.js -->
@@ -144,22 +100,19 @@
   <!-- Panel de Desarrollo -->
   <div id="devPanel">
     <div id="devPanelHeader">
-      <!-- Pestañas -->
       <button id="inspectorTabBtn" class="devTabBtn">Inspector</button>
       <button id="statusTabBtn" class="devTabBtn">Status</button>
-
-      <!-- Botones de Cámara libre y Iluminación -->
       <button id="toggleFreeCameraBtn" class="devTabBtn">Activar Cámara Libre</button>
-      <button id="toggleLightingBtn" class="devTabBtn">Desactivar Iluminación</button>
+      <button id="toggleLightingBtn" class="devTabBtn">Activar Iluminación</button>
+      <button id="toggleGridBtn" class="devTabBtn">Mostrar Grid</button>
+      <button id="reloadBtn" class="devTabBtn">Recargar</button>
     </div>
 
-    <!-- Vista Inspector -->
     <div id="inspectorView">
       <strong>Árbol Virtual HSML</strong>
       <div id="treeView"></div>
     </div>
 
-    <!-- Vista Status -->
     <div id="statusView">
       <strong>Estado del Render</strong>
       <div style="margin-top: 4px;">
@@ -183,49 +136,63 @@
         this.children = [];
         this.key = VirtualNode.nextKey++;
       }
-      setAttribute(attr, value) {
-        this.attributes[attr] = value;
-      }
-      appendChild(child) {
-        this.children.push(child);
-      }
+      setAttribute(attr, value) { this.attributes[attr] = value; }
+      appendChild(child) { this.children.push(child); }
     }
     VirtualNode.nextKey = 1;
 
     let virtualDOM = null;
     const nodeKeyToObject = new Map();
+    const vnodeToProxy = new WeakMap();
     const userUpdateFunctions = [];
 
-    // Control de FPS
-    let lastTime = performance.now();
+    // Índices simples para selectores (#id, .class, tag)
+    const idToVNode = new Map();
+    const classToVNodes = new Map();
+
+    // Control de FPS/delta
+    let lastTimeStat = performance.now();
     let frames = 0;
     let currentFPS = 0;
+    let lastFrameTS = performance.now();
 
     // Iluminación
     let lightingEnabled = false;
+
+    // Grid/Axes helpers
+    const gridHelper = new THREE.GridHelper(40, 40, 0x444444, 0x222222);
+    gridHelper.visible = false;
+    const axesHelper = new THREE.AxesHelper(3);
+    axesHelper.visible = false;
+
+    // Cache de modelos
+    const gltfCache = new Map();
+
+    // Behaviors
+    const behaviorRegistry = new Map();
 
     // ========== 1) Proxy de VirtualNode, con notificación al DevTool ==========
     let devtoolDirty = false;    // Indica si se debe refrescar el Inspector
     let lastDevtoolUpdate = 0;   // Último momento de refresh
     const DEVTOOL_THROTTLE_MS = 100;
 
-    function scheduleDevToolUpdate() {
-      devtoolDirty = true;
-    }
+    function scheduleDevToolUpdate() { devtoolDirty = true; }
 
     function maybeUpdateDevTool() {
       if (!devtoolDirty) return;
       const now = performance.now();
       if (now - lastDevtoolUpdate >= DEVTOOL_THROTTLE_MS) {
+        reindexVirtualDOM();
         updateDevTool();
         devtoolDirty = false;
         lastDevtoolUpdate = now;
       }
     }
 
-    function createProxiedNode(tag) {
-      const realNode = new VirtualNode(tag);
-      return new Proxy(realNode, {
+    function createProxiedNode(tagOrExisting) {
+      const realNode = (typeof tagOrExisting === 'string') ? new VirtualNode(tagOrExisting) : tagOrExisting;
+      if (vnodeToProxy.has(realNode)) return vnodeToProxy.get(realNode);
+      const proxy = new Proxy(realNode, {
         get(target, prop, receiver) {
           // position
           if (prop === 'position') {
@@ -249,27 +216,17 @@
               set z(val) { target.setAttribute('rz', val); scheduleDevToolUpdate(); }
             };
           }
-          // appendChild
           if (prop === 'appendChild') {
-            return (childProxy) => {
-              target.children.push(childProxy);
-            };
+            return (childProxy) => { target.children.push(childProxy); };
           }
-          // setAttribute
           if (prop === 'setAttribute') {
-            return (attr, val) => {
-              target.setAttribute(attr, val);
-              scheduleDevToolUpdate();
-            };
+            return (attr, val) => { target.setAttribute(attr, val); scheduleDevToolUpdate(); };
           }
-          // Atributos directos
-          if (prop in target.attributes) {
-            return target.attributes[prop];
-          }
+          if (prop in target.attributes) return target.attributes[prop];
           return Reflect.get(target, prop, receiver);
         },
         set(target, prop, value) {
-          if (['src','class','collider','rigidbody','id','scale','x','y','z','rx','ry','rz']
+          if (['src','class','collider','rigidbody','id','scale','x','y','z','rx','ry','rz','color']
               .includes(prop)) {
             target.setAttribute(prop, value);
             scheduleDevToolUpdate();
@@ -278,9 +235,11 @@
           return Reflect.set(target, prop, value);
         }
       });
+      vnodeToProxy.set(realNode, proxy);
+      return proxy;
     }
 
-    // ========== 2) Convertir HSML en VirtualNode ==========
+    // ========== 2) HSML => VirtualNode (tags básicos extra) ==========
     function parseHSML(xmlNode) {
       if (!xmlNode || xmlNode.nodeType !== Node.ELEMENT_NODE) return null;
       const vnode = new VirtualNode(xmlNode.nodeName);
@@ -295,38 +254,105 @@
       return vnode;
     }
 
-    // ========== 3) Construir la escena solo 1 vez por nodo ==========
+    function reindexVirtualDOM() {
+      idToVNode.clear(); classToVNodes.clear();
+      function walk(v) {
+        if (!v) return;
+        const id = v.attributes.id; if (id) idToVNode.set(id, v);
+        const cls = (v.attributes.class || '').trim();
+        if (cls) {
+          cls.split(/\s+/).forEach(c => {
+            if (!classToVNodes.has(c)) classToVNodes.set(c, new Set());
+            classToVNodes.get(c).add(v);
+          });
+        }
+        (v.children||[]).forEach(walk);
+      }
+      if (virtualDOM) walk(virtualDOM);
+    }
+
+    // ========== 3) Construir escena (tags: group, model, box, sphere, plane, light) ==========
+    function getDefaultMaterial(color) {
+      const col = (color !== undefined) ? new THREE.Color(color) : new THREE.Color('#cccccc');
+      // Si no hay luces, usa Basic para que se vea. Si hay luces, usa Standard.
+      return lightingEnabled ? new THREE.MeshStandardMaterial({ color: col }) : new THREE.MeshBasicMaterial({ color: col });
+    }
+
+    async function getGLTFScene(src) {
+      if (gltfCache.has(src)) return gltfCache.get(src).clone(true);
+      const loader = new GLTFLoader();
+      return new Promise((resolve, reject) => {
+        loader.load(src, (gltf) => {
+          gltfCache.set(src, gltf.scene);
+          resolve(gltf.scene.clone(true));
+        }, undefined, (err) => reject(err));
+      });
+    }
+
     function buildSceneFromVirtual(vnode, parentObj) {
       let obj;
-      if (vnode.tag === "model") {
+      const tag = vnode.tag;
+
+      if (tag === 'group' || tag === 'space') {
+        obj = new THREE.Object3D();
+      } else if (tag === 'model') {
         obj = new THREE.Object3D();
         const src = vnode.attributes.src;
         if (src) {
-          const loader = new GLTFLoader();
-          loader.load(
-            src,
-            gltf => {
-              while (obj.children.length > 0) obj.remove(obj.children[0]);
-              obj.add(gltf.scene);
-            },
-            undefined,
-            err => console.error("Error al cargar modelo:", src, err)
-          );
+          getGLTFScene(src).then(sceneChild => {
+            while (obj.children.length > 0) obj.remove(obj.children[0]);
+            obj.add(sceneChild);
+          }).catch(err => console.error('Error al cargar modelo:', src, err));
+        }
+      } else if (tag === 'box') {
+        const w = parseFloat(vnode.attributes.width ?? 1);
+        const h = parseFloat(vnode.attributes.height ?? 1);
+        const d = parseFloat(vnode.attributes.depth ?? 1);
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const mesh = new THREE.Mesh(geo, getDefaultMaterial(vnode.attributes.color));
+        obj = mesh;
+      } else if (tag === 'sphere') {
+        const r = parseFloat(vnode.attributes.radius ?? 0.5);
+        const ws = parseInt(vnode.attributes.widthSegments ?? 16);
+        const hs = parseInt(vnode.attributes.heightSegments ?? 12);
+        const geo = new THREE.SphereGeometry(r, ws, hs);
+        const mesh = new THREE.Mesh(geo, getDefaultMaterial(vnode.attributes.color));
+        obj = mesh;
+      } else if (tag === 'plane') {
+        const w = parseFloat(vnode.attributes.width ?? 5);
+        const h = parseFloat(vnode.attributes.height ?? 5);
+        const geo = new THREE.PlaneGeometry(w, h);
+        const mesh = new THREE.Mesh(geo, getDefaultMaterial(vnode.attributes.color));
+        mesh.rotation.x = -Math.PI/2; // suelo por defecto
+        obj = mesh;
+      } else if (tag === 'light') {
+        const type = (vnode.attributes.type || 'ambient').toLowerCase();
+        const color = new THREE.Color(vnode.attributes.color || '#ffffff');
+        const intensity = parseFloat(vnode.attributes.intensity ?? 1);
+        if (type === 'ambient') obj = new THREE.AmbientLight(color, intensity);
+        else if (type === 'directional') {
+          obj = new THREE.DirectionalLight(color, intensity);
+          obj.position.set(5,10,5);
+        } else if (type === 'point') {
+          obj = new THREE.PointLight(color, intensity, parseFloat(vnode.attributes.distance ?? 0));
+        } else {
+          obj = new THREE.Object3D();
         }
       } else {
         obj = new THREE.Object3D();
       }
-      obj.userData.key = vnode.key;
 
+      obj.userData.key = vnode.key;
       parentObj.add(obj);
       nodeKeyToObject.set(vnode.key, obj);
 
-      vnode.children.forEach(child => {
-        buildSceneFromVirtual(child, obj);
-      });
+      // Aplica behaviors según class
+      applyBehaviors(vnode, obj);
+
+      // Hijos
+      vnode.children.forEach(child => { buildSceneFromVirtual(child, obj); });
     }
 
-    // ========== 4) Aplicar transformaciones cada frame ==========
     function applyTransformsRecursively(vnode) {
       const obj = nodeKeyToObject.get(vnode.key);
       if (obj) {
@@ -345,6 +371,22 @@
       }
       vnode.children.forEach(child => applyTransformsRecursively(child));
     }
+
+    function applyBehaviors(vnode, object3D) {
+      const classes = (vnode.attributes.class || '').split(/\s+/).filter(Boolean);
+      classes.forEach(cls => {
+        const factory = behaviorRegistry.get(cls);
+        if (factory) {
+          const updater = factory({ vnode, object: object3D, attrs: vnode.attributes, dimension });
+          if (typeof updater === 'function') userUpdateFunctions.push(updater);
+        }
+      });
+    }
+
+    // Algunos behaviors built-in
+    behaviorRegistry.set('spin', ({ vnode }) => (dt) => { vnode.attributes.ry = (parseFloat(vnode.attributes.ry||0) + dt) % (Math.PI*2); });
+    behaviorRegistry.set('bob',  ({ vnode }) => { let t=0; return (dt)=>{ t+=dt; vnode.attributes.y = Math.sin(t)*0.5 + (parseFloat(vnode.attributes.y0||0)); }; });
+    behaviorRegistry.set('orbit', ({ vnode, attrs }) => { const r=parseFloat(attrs.radius||5), s=parseFloat(attrs.speed||0.5); let a=parseFloat(attrs.angle||0); return (dt)=>{ a+=dt*s; vnode.attributes.x=Math.cos(a)*r; vnode.attributes.z=Math.sin(a)*r; vnode.attributes.ry = -a; }; });
 
     // ========== 5) DevTools: Inspector / Árbol Virtual ==========
     function updateDevTool() {
@@ -390,20 +432,18 @@
       }
 
       const centerBtn = document.createElement('button');
-      centerBtn.textContent = "Centrar";
+      centerBtn.textContent = 'Centrar';
       centerBtn.classList.add('actionBtn');
       centerBtn.addEventListener('click', e => {
         e.stopPropagation();
         scene.traverse(obj => {
-          if (obj.userData && obj.userData.key === vnode.key) {
-            centerCameraOnObject(obj);
-          }
+          if (obj.userData && obj.userData.key === vnode.key) centerCameraOnObject(obj);
         });
       });
       header.appendChild(centerBtn);
 
       const removeBtn = document.createElement('button');
-      removeBtn.textContent = "Eliminar";
+      removeBtn.textContent = 'Eliminar';
       removeBtn.classList.add('actionBtn');
       removeBtn.addEventListener('click', e => {
         e.stopPropagation();
@@ -419,10 +459,7 @@
 
       if (vnode.children.length > 0) {
         const ul = document.createElement('ul');
-        vnode.children.forEach(child => {
-          const childHTML = buildVirtualTreeHTML(child);
-          if (childHTML) ul.appendChild(childHTML);
-        });
+        vnode.children.forEach(child => { const childHTML = buildVirtualTreeHTML(child); if (childHTML) ul.appendChild(childHTML); });
         li.appendChild(ul);
       }
       return li;
@@ -431,12 +468,8 @@
     function removeNodeByKey(rootVNode, key) {
       if (!rootVNode || !rootVNode.children) return false;
       for (let i = 0; i < rootVNode.children.length; i++) {
-        if (rootVNode.children[i].key === key) {
-          rootVNode.children.splice(i, 1);
-          return true;
-        } else {
-          if (removeNodeByKey(rootVNode.children[i], key)) return true;
-        }
+        if (rootVNode.children[i].key === key) { rootVNode.children.splice(i, 1); return true; }
+        else { if (removeNodeByKey(rootVNode.children[i], key)) return true; }
       }
       return false;
     }
@@ -454,17 +487,12 @@
     // ========== 6) Three.js Setup ==========
     const canvas = document.getElementById('canvas');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight - 40);
-
-    renderer.setAnimationLoop( animate );
-
-    // Habilitar WebXR para VR y agregar botón VR al toolbar
-    renderer.setPixelRatio( window.devicePixelRatio );
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
     renderer.xr.setReferenceSpaceType('local-floor');
-    // o 'local' si no quieres anclar al piso
-    // renderer.xr.setReferenceSpaceType('local');
 
+    // VR Button
     const vrButton = VRButton.createButton(renderer);
     document.getElementById('toolbar').appendChild(vrButton);
 
@@ -473,122 +501,102 @@
 
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 5, 20);
-    renderer.xr.addEventListener('sessionstart', () => {
-        // Por ejemplo, mover la escena un poco más lejos:
-        camera.position.set(0, 5, 20);
-    });
-    window.addEventListener( 'resize', onWindowResize );
 
+    window.addEventListener('resize', onWindowResize);
     function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-
-        renderer.setSize( window.innerWidth, window.innerHeight );
-    }
-
-    function getTexturesFromAtlasFile( atlasImgUrl, tilesNum ) {
-        const textures = [];
-
-        for ( let i = 0; i < tilesNum; i ++ ) {
-            textures[ i ] = new THREE.Texture();
-        }
-
-        const loader = new THREE.ImageLoader();
-        loader.load( atlasImgUrl, function ( imageObj ) {
-
-            let canvas, context;
-            const tileWidth = imageObj.height;
-
-            for ( let i = 0; i < textures.length; i ++ ) {
-
-                canvas = document.createElement( 'canvas' );
-                context = canvas.getContext( '2d' );
-                canvas.height = tileWidth;
-                canvas.width = tileWidth;
-                context.drawImage( imageObj, tileWidth * i, 0, tileWidth, tileWidth, 0, 0, tileWidth, tileWidth );
-                textures[ i ].colorSpace = THREE.SRGBColorSpace;
-                textures[ i ].image = canvas;
-                textures[ i ].needsUpdate = true;
-
-            }
-
-        } );
-
-        return textures;
-    }
-
-    const geometry = new THREE.BoxGeometry( 100, 100, 100 );
-    geometry.scale( 1, 1, - 1 );
-
-    const textures = getTexturesFromAtlasFile( 'https://threejs.org/examples/textures/cube/sun_temple_stripe_stereo.jpg', 12 );
-
-    const materials = [];
-
-    for ( let i = 0; i < 6; i ++ ) {
-
-        materials.push( new THREE.MeshBasicMaterial( { map: textures[ i ] } ) );
-
-    }
-
-    const skyBox = new THREE.Mesh( geometry, materials );
-    scene.add( skyBox );
-
-
-    // controllers
-
-    function onSelectStart() {
-        // this.userData.isSelecting = true;
-    }
-
-    function onSelectEnd() {
-        // this.userData.isSelecting = false;
-    }
-
-    controller1 = renderer.xr.getController( 0 );
-    controller1.addEventListener( 'selectstart', onSelectStart );
-    controller1.addEventListener( 'selectend', onSelectEnd );
-    controller1.addEventListener( 'connected', function ( event ) {
-        this.add( buildController( event.data ) );
-    });
-    controller1.addEventListener( 'disconnected', function () {
-        this.remove( this.children[ 0 ] );
-    });
-    scene.add( controller1 );
-
-    controller2 = renderer.xr.getController( 1 );
-    controller2.addEventListener( 'selectstart', onSelectStart );
-    controller2.addEventListener( 'selectend', onSelectEnd );
-    controller2.addEventListener( 'connected', function ( event ) {
-        this.add( buildController( event.data ) );
-    });
-    controller2.addEventListener( 'disconnected', function () {
-        this.remove( this.children[ 0 ] );
-    });
-    scene.add( controller2 );
-
-    // ## Iluminacion
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 3);
-    if(lightingEnabled) scene.add(ambientLight);
-
-
-    // ========== 7) Render Loop y FPS/Mem ==========
-    function animate() {
-    //   requestAnimationFrame(animate);
-
-      userUpdateFunctions.forEach(fn => fn());
-      if (virtualDOM) applyTransformsRecursively(virtualDOM);
-
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize( window.innerWidth, window.innerHeight );
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    renderer.xr.addEventListener('sessionstart', () => { camera.position.set(0, 1.6, 3); });
 
-      frames++;
+    // Helpers
+    scene.add(gridHelper);
+    scene.add(axesHelper);
+
+    // Skybox (por defecto)
+    function getTexturesFromAtlasFile(atlasImgUrl, tilesNum) {
+      const textures = [];
+      for (let i = 0; i < tilesNum; i++) textures[i] = new THREE.Texture();
+      const loader = new THREE.ImageLoader();
+      loader.load(atlasImgUrl, function (imageObj) {
+        let canvas, context; const tileWidth = imageObj.height;
+        for (let i = 0; i < textures.length; i++) {
+          canvas = document.createElement('canvas'); context = canvas.getContext('2d');
+          canvas.height = tileWidth; canvas.width = tileWidth;
+          context.drawImage(imageObj, tileWidth * i, 0, tileWidth, tileWidth, 0, 0, tileWidth, tileWidth);
+          textures[i].colorSpace = THREE.SRGBColorSpace; textures[i].image = canvas; textures[i].needsUpdate = true;
+        }
+      });
+      return textures;
+    }
+    const geometrySky = new THREE.BoxGeometry(100, 100, 100); geometrySky.scale(1, 1, -1);
+    const texturesSky = getTexturesFromAtlasFile('https://threejs.org/examples/textures/cube/sun_temple_stripe_stereo.jpg', 12);
+    const materialsSky = []; for (let i = 0; i < 6; i++) materialsSky.push(new THREE.MeshBasicMaterial({ map: texturesSky[i] }));
+    const skyBox = new THREE.Mesh(geometrySky, materialsSky); scene.add(skyBox);
+
+    // Controladores VR
+    function buildController(data) {
+      let geometry, material;
+      if (data.targetRayMode === 'tracked-pointer') {
+        geometry = new THREE.BufferGeometry().setFromPoints([ new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1) ]);
+        material = new THREE.LineBasicMaterial({ linewidth: 2, transparent: true, opacity: 0.8 });
+        return new THREE.Line(geometry, material);
+      } else if (data.targetRayMode === 'gaze') {
+        geometry = new THREE.RingGeometry(0.02, 0.04, 32).translate(0, 0, -1);
+        material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+        return new THREE.Mesh(geometry, material);
+      }
+      return new THREE.Group();
+    }
+
+    const controllerModelFactory = new XRControllerModelFactory();
+
+    controller1 = renderer.xr.getController(0);
+    controller1.addEventListener('selectstart', onSelectStart);
+    controller1.addEventListener('selectend', onSelectEnd);
+    controller1.addEventListener('connected', function (event) { this.add(buildController(event.data)); });
+    controller1.addEventListener('disconnected', function () { this.remove(this.children[0]); });
+    scene.add(controller1);
+
+    controller2 = renderer.xr.getController(1);
+    controller2.addEventListener('selectstart', onSelectStart);
+    controller2.addEventListener('selectend', onSelectEnd);
+    controller2.addEventListener('connected', function (event) { this.add(buildController(event.data)); });
+    controller2.addEventListener('disconnected', function () { this.remove(this.children[0]); });
+    scene.add(controller2);
+
+    controllerGrip1 = renderer.xr.getControllerGrip(0);
+    controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+    scene.add(controllerGrip1);
+
+    controllerGrip2 = renderer.xr.getControllerGrip(1);
+    controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
+    scene.add(controllerGrip2);
+
+    function onSelectStart() { /* hooks para interacciones */ }
+    function onSelectEnd() { /* hooks para interacciones */ }
+
+    // ## Iluminacion
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
+    if (lightingEnabled) scene.add(ambientLight);
+
+    // ========== 7) Render Loop y FPS/Mem ==========
+    renderer.setAnimationLoop(animate);
+
+    function animate() {
       const now = performance.now();
-      if (now - lastTime >= 1000) {
-        currentFPS = frames * 1000 / (now - lastTime);
-        frames = 0;
-        lastTime = now;
+      const dt = (now - lastFrameTS) / 1000;
+      lastFrameTS = now;
+
+      userUpdateFunctions.forEach(fn => { try { fn(dt); } catch (e) { console.error('Updater error', e); } });
+      if (virtualDOM) applyTransformsRecursively(virtualDOM);
+
+      // Stats
+      frames++;
+      if (now - lastTimeStat >= 1000) {
+        currentFPS = frames * 1000 / (now - lastTimeStat);
+        frames = 0; lastTimeStat = now;
         document.getElementById('fpsValue').textContent = currentFPS.toFixed(1);
         if (performance.memory) {
           const used = (performance.memory.usedJSHeapSize / 1048576).toFixed(1);
@@ -596,15 +604,15 @@
           document.getElementById('ramValue').textContent = `${used} / ${total} MB`;
         }
       }
+
       maybeUpdateDevTool();
       renderer.render(scene, camera);
     }
-    // animate();
 
-    // ========== 8) Controles de cámara libre (WASD) ==========
+    // ========== 8) Cámara Libre (WASD + pointer lock) ==========
     const keys = {};
-    document.addEventListener('keydown', e => { keys[e.code] = true; });
-    document.addEventListener('keyup', e => { keys[e.code] = false; });
+    document.addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyR') loadHSML(); });
+    document.addEventListener('keyup',   e => { keys[e.code] = false; });
     const moveSpeed = 0.2, rotationSpeed = 0.002;
 
     document.addEventListener('mousemove', e => {
@@ -616,11 +624,8 @@
     });
     function updateCameraLoop() {
       const forward = new THREE.Vector3();
-      camera.getWorldDirection(forward);
-      forward.y = 0;
-      forward.normalize();
-      const right = new THREE.Vector3();
-      right.crossVectors(camera.up, forward).normalize();
+      camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
+      const right = new THREE.Vector3(); right.crossVectors(camera.up, forward).normalize();
       if (keys['KeyW']) camera.position.addScaledVector(forward, moveSpeed);
       if (keys['KeyS']) camera.position.addScaledVector(forward, -moveSpeed);
       if (keys['KeyA']) camera.position.addScaledVector(right, moveSpeed);
@@ -629,78 +634,127 @@
     }
     updateCameraLoop();
 
-    // ========== 9) dimension / setUpdate (expuestos al script) ==========
+    // ========== 9) Mini-Framework API (dimension) ==========
     const dimension = {
-      createElement(tagName) {
-        return createProxiedNode(tagName);
+      createElement(tagName) { return createProxiedNode(tagName); },
+      create(tagName, attrs = {}, children = []) {
+        const node = createProxiedNode(tagName);
+        Object.entries(attrs).forEach(([k,v]) => node.setAttribute(k, v));
+        children.forEach(ch => node.appendChild(ch));
+        return node;
       },
       appendChild(childProxy) {
-        if (!virtualDOM) {
-          console.warn("No hay virtualDOM aún.");
-          return;
-        }
+        if (!virtualDOM) { console.warn('No hay virtualDOM aún.'); return; }
         virtualDOM.children.push(childProxy);
         buildSceneFromVirtual(childProxy, scene);
         scheduleDevToolUpdate();
       },
-      refresh() {
+      remove(nodeOrId) {
+        let v = (typeof nodeOrId === 'string') ? idToVNode.get(nodeOrId) : nodeOrId;
+        if (!v) return;
+        removeNodeByKey(virtualDOM, v.key);
+        const obj = nodeKeyToObject.get(v.key);
+        if (obj && obj.parent) obj.parent.remove(obj);
+        nodeKeyToObject.delete(v.key);
         scheduleDevToolUpdate();
-      }
+      },
+      find(selector) {
+        if (!selector) return [];
+        if (selector.startsWith('#')) {
+          const v = idToVNode.get(selector.slice(1));
+          return v ? [createProxiedNode(v)] : [];
+        }
+        if (selector.startsWith('.')) {
+          const set = classToVNodes.get(selector.slice(1));
+          return set ? Array.from(set).map(v => createProxiedNode(v)) : [];
+        }
+        // tag
+        const out = [];
+        (function walk(v){ if (!v) return; if (v.tag === selector) out.push(createProxiedNode(v)); (v.children||[]).forEach(walk); })(virtualDOM);
+        return out;
+      },
+      behavior(name, factory) { behaviorRegistry.set(name, factory); },
+      refresh() { scheduleDevToolUpdate(); },
+      toHSML() { return serializeHSML(virtualDOM); },
+      importHSML(hsmlString) { importHSMLFromString(hsmlString); }
     };
 
-    function setUpdate(fn) {
-      userUpdateFunctions.push(fn);
+    function setUpdate(fn) { userUpdateFunctions.push(fn); }
+
+    function serializeHSML(vnode) {
+      if (!vnode) return '';
+      const attrs = Object.entries(vnode.attributes).map(([k,v]) => `${k}="${String(v)}"`).join(' ');
+      const open = attrs ? `<${vnode.tag} ${attrs}>` : `<${vnode.tag}>`;
+      if (!vnode.children || vnode.children.length === 0) return `${open}</${vnode.tag}>`;
+      return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`;
     }
 
     // ========== 10) Cargar HSML + Scripts en Sandbox ==========
-    function loadHSML() {
-      const url = document.getElementById('urlInput').value;
-      fetch(url)
-        .then(res => res.text())
-        .then(hsmlString => {
-          scene.clear();
-          scene.add( skyBox );
-          nodeKeyToObject.clear();
-          VirtualNode.nextKey = 1;
-          userUpdateFunctions.length = 0;
-
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(hsmlString, "text/xml");
-          const spaceXML = xmlDoc.getElementsByTagName("space")[0];
-          if (!spaceXML) {
-            console.error("No se encontró <space> en el HSML");
-            return;
-          }
-          virtualDOM = parseHSML(spaceXML);
-          buildSceneFromVirtual(virtualDOM, scene);
-          scheduleDevToolUpdate();
-
-          const scriptTags = spaceXML.getElementsByTagName("script");
-          for (let i = 0; i < scriptTags.length; i++) {
-            const scriptNode = scriptTags[i];
-            const scriptURL = scriptNode.getAttribute("src");
-            if (scriptURL) {
-              fetch(scriptURL)
-                .then(r => r.text())
-                .then(code => {
-                  const sandboxedFn = new Function(
-                    "dimension",
-                    "setUpdate",
-                    "setTimeout",
-                    "setInterval",
-                    code
-                  );
-                  sandboxedFn(dimension, setUpdate, setTimeout, setInterval);
-                })
-                .catch(err => console.error("Error al cargar script:", scriptURL, err));
-            }
-          }
-        })
-        .catch(err => console.error("Error al cargar HSML:", err));
+    async function loadHSML() {
+      const input = document.getElementById('urlInput').value.trim();
+      let hsmlString = '';
+      if (input.startsWith('<')) { // HSML inline pegado en el input
+        hsmlString = input;
+      } else {
+        try {
+          const res = await fetch(input);
+          hsmlString = await res.text();
+        } catch (err) {
+          console.warn('No se pudo cargar la URL. Usando demo HSML.');
+          hsmlString = DEFAULT_HSML;
+        }
+      }
+      importHSMLFromString(hsmlString);
     }
 
-    // ========== 11) Eventos de UI (pestañas, botones) ==========
+    function importHSMLFromString(hsmlString) {
+      // Reset scene (conserva sky/grid/axes)
+      scene.children.slice().forEach(obj => { if (obj !== skyBox && obj !== gridHelper && obj !== axesHelper && obj.type !== 'AmbientLight') scene.remove(obj); });
+      nodeKeyToObject.clear();
+      VirtualNode.nextKey = 1;
+      userUpdateFunctions.length = 0;
+
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(hsmlString, 'text/xml');
+      const spaceXML = xmlDoc.getElementsByTagName('space')[0];
+      if (!spaceXML) { console.error('No se encontró <space> en el HSML'); return; }
+
+      virtualDOM = parseHSML(spaceXML);
+      reindexVirtualDOM();
+      buildSceneFromVirtual(virtualDOM, scene);
+      scheduleDevToolUpdate();
+
+      // Ejecutar scripts
+      const scriptTags = spaceXML.getElementsByTagName('script');
+      for (let i = 0; i < scriptTags.length; i++) {
+        const scriptNode = scriptTags[i];
+        const scriptURL = scriptNode.getAttribute('src');
+        const inlineCode = scriptNode.textContent?.trim();
+        if (scriptURL) {
+          fetch(scriptURL).then(r => r.text()).then(code => runSandbox(code)).catch(err => console.error('Error al cargar script:', scriptURL, err));
+        } else if (inlineCode) {
+          runSandbox(inlineCode);
+        }
+      }
+    }
+
+    function runSandbox(code) {
+      // Sandbox muy simple: expone solo APIs necesarias
+      const sandboxedFn = new Function('dimension','setUpdate','setTimeout','setInterval', code);
+      sandboxedFn(dimension, setUpdate, setTimeout, setInterval);
+    }
+
+    // ========== 11) Eventos de UI ==========
     document.getElementById('loadButton').addEventListener('click', loadHSML);
+    document.getElementById('reloadBtn').addEventListener('click', loadHSML);
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const text = dimension.toHSML();
+      const blob = new Blob([text], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'scene.hsml'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
     const devPanel = document.getElementById('devPanel');
     const toggleDevPanelBtn = document.getElementById('toggleDevPanel');
     toggleDevPanelBtn.addEventListener('click', () => {
@@ -715,45 +769,58 @@
 
     const inspectorView = document.getElementById('inspectorView');
     const statusView = document.getElementById('statusView');
-    document.getElementById('inspectorTabBtn').addEventListener('click', () => {
-      inspectorView.style.display = 'block';
-      statusView.style.display = 'none';
-    });
-    document.getElementById('statusTabBtn').addEventListener('click', () => {
-      inspectorView.style.display = 'none';
-      statusView.style.display = 'block';
-    });
+    document.getElementById('inspectorTabBtn').addEventListener('click', () => { inspectorView.style.display = 'block'; statusView.style.display = 'none'; });
+    document.getElementById('statusTabBtn').addEventListener('click', () => { inspectorView.style.display = 'none'; statusView.style.display = 'block'; });
 
     const toggleFreeCameraBtn = document.getElementById('toggleFreeCameraBtn');
     toggleFreeCameraBtn.addEventListener('click', () => {
-      if (document.pointerLockElement !== canvas) {
-        canvas.requestPointerLock();
-        toggleFreeCameraBtn.textContent = 'Desactivar Cámara Libre';
-      } else {
-        document.exitPointerLock();
-        toggleFreeCameraBtn.textContent = 'Activar Cámara Libre';
-      }
+      if (document.pointerLockElement !== canvas) { canvas.requestPointerLock(); toggleFreeCameraBtn.textContent = 'Desactivar Cámara Libre'; }
+      else { document.exitPointerLock(); toggleFreeCameraBtn.textContent = 'Activar Cámara Libre'; }
     });
 
     const toggleLightingBtn = document.getElementById('toggleLightingBtn');
     toggleLightingBtn.addEventListener('click', () => {
       lightingEnabled = !lightingEnabled;
-      if (lightingEnabled) {
-        scene.add(ambientLight);
-        toggleLightingBtn.textContent = 'Desactivar Iluminación';
-      } else {
-        scene.remove(ambientLight);
-        toggleLightingBtn.textContent = 'Activar Iluminación';
-      }
+      if (lightingEnabled) { scene.add(ambientLight); toggleLightingBtn.textContent = 'Desactivar Iluminación'; }
+      else { scene.remove(ambientLight); toggleLightingBtn.textContent = 'Activar Iluminación'; }
     });
-    if (lightingEnabled) {
-      toggleLightingBtn.textContent = 'Desactivar Iluminación';
-    } else {
-      toggleLightingBtn.textContent = 'Activar Iluminación';
+    toggleLightingBtn.textContent = lightingEnabled ? 'Desactivar Iluminación' : 'Activar Iluminación';
+
+    const toggleGridBtn = document.getElementById('toggleGridBtn');
+    toggleGridBtn.addEventListener('click', () => {
+      gridHelper.visible = !gridHelper.visible; axesHelper.visible = gridHelper.visible; toggleGridBtn.textContent = gridHelper.visible ? 'Ocultar Grid' : 'Mostrar Grid';
+    });
+
+    // Enter para cargar
+    document.getElementById('urlInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadHSML(); });
+
+    // ====== HSML de ejemplo por defecto ======
+    const DEFAULT_HSML = `
+<space>
+  <light type="ambient" intensity="2" />
+  <group id="sceneRoot">
+    <plane id="ground" width="20" height="20" color="#404040" y="0" />
+    <box id="crate" width="1" height="1" depth="1" color="#4db6ac" x="0" y="0.5" z="0" class="spin" />
+    <sphere id="ball" radius="0.5" color="#ffcc00" x="2" y="1" z="0" class="bob" />
+    <!-- Ejemplo de modelo (comentar si no hay CORS): -->
+    <!-- <model id="bot" src="https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb" scale="1" x="-2" y="0" z="0" class="orbit" speed="0.75" radius="3"/> -->
+  <\/group>
+  <script>
+    // Script inline de ejemplo: crear objetos dinámicos
+    const cubes = [];
+    for (let i=0;i<3;i++) {
+      const n = dimension.create('box', { width: 0.5, height: 0.5, depth: 0.5, color: '#90caf9', x: i-1, y: 1.5, z: -2, class: 'spin' });
+      cubes.push(n);
+      dimension.appendChild(n);
     }
+    setUpdate((dt) => {
+      cubes.forEach((n, idx) => { n.position.y = 1.5 + Math.sin(performance.now()*0.001 + idx)*0.2; });
+    });
+  <\/script>
+<\/space>`;
 
-    // setTimeout(loadHSML, 200)
-
+    // Carga inicial opcional (descomentar si querés auto-cargar)
+    // setTimeout(loadHSML, 200);
   </script>
 </body>
 </html>
