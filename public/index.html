@@ -537,11 +537,13 @@
             obj.add(a);
             obj.userData.audio = a;
             audioLoader.load(src, buffer=>{
+              // Si el nodo ya no está montado (escena cambió), no reproducir
+              if (!a || !a.parent) return;
               a.setBuffer(buffer);
               a.setLoop(loop);
               a.setVolume(vol);
               if (wantPos && a.setRefDistance) a.setRefDistance(refD);
-              if (auto) a.play();
+              if (auto && !a.isPlaying) a.play();
             });
           } else {
             const a = obj.userData.audio;
@@ -550,7 +552,7 @@
               a.setVolume(vol);
               if (wantPos && a.setRefDistance) a.setRefDistance(refD);
               // autoplay handled on (re)load; manual play if requested and buffer present
-              if (auto && a.buffer && !a.isPlaying) a.play();
+              if (auto && a.buffer && !a.isPlaying && a.parent) a.play();
             }
           }
         }
@@ -745,7 +747,7 @@
     camera.add(audioListener);
     const audioLoader = new THREE.AudioLoader();
     function playSoundOneShot(url, volume=0.7){ const s = new THREE.Audio(audioListener); audioLoader.load(url, buffer=>{ s.setBuffer(buffer); s.setVolume(volume); s.play(); }); return s; }
-    function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){ const a = new THREE.PositionalAudio(audioListener); audioLoader.load(url, buffer=>{ a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); }); obj.add(a); return a; }
+    function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){ const a = new THREE.PositionalAudio(audioListener); audioLoader.load(url, buffer=>{ if(!a || !a.parent) return; a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); }); obj.add(a); return a; }
     function stopAudioRecursive(root){ if(!root) return; const toStop=[]; root.traverse(n=>{ if(n.isAudio){ toStop.push(n); } if(n.userData && n.userData.audio){ toStop.push(n.userData.audio); } }); toStop.forEach(a=>{ try{ a.stop(); }catch(_){} }); }
 
     // ----------------- Controlador de personaje (abstraído) -----------------
