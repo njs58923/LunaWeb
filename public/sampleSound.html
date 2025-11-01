@@ -1,0 +1,18 @@
+<hsml>
+  <head>
+    <light type="ambient" intensity="0.65"/>
+    <light type="directional" intensity="1.2"/>
+  </head>
+
+  <space>
+    <box id="box-sound" width="1" height="1" depth="1" color="#455a64" z="0"/>
+    <text text="Bloque de sonido" y="1"/>
+  </space>
+
+  <script>
+    const cubeNode = dimension.get('box-sound')
+    cubeNode.addEventListener('toque', ({target})=>{
+      dimension.audio.play('/sounds/touch.mp3');
+    });
+  </script>
+</hsml>

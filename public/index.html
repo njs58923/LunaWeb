@@ -35,26 +35,44 @@
       }
     }
   </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@400" />
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24;
+      vertical-align: middle;
+      line-height: 1;
+    }
+  </style>
 </head>
 <body>
   <div id="toolbar">
-    <input id="urlInput" type="text" placeholder="Pega HSML o URL (Enter) — #level en hash para autoload" value="">
-    <button id="loadButton">Cargar HSML</button>
-    <button id="toggleDevPanel">DevTools</button>
-    <button id="exportBtn">Exportar HSML</button>
-    <span id="smallNote">Click: capturar mouse • WASD moverse • Shift sprint • Space salto • R recargar • VR: stick izq. mover, stick der. girar, trigger usar</span>
-  </div>
-
-  <canvas id="canvas"></canvas>
+    <input id="urlInput" type="text" placeholder="Pega HSML o URL (Enter)" value="">
+    <button id="loadButton" title="Cargar HSML"><span class="material-symbols-outlined">folder_open</span></button>
+    <button id="toggleDevPanel" title="DevTools"><span class="material-symbols-outlined">build</span></button>
+    <button id="exportBtn" title="Exportar HSML"><span class="material-symbols-outlined">save</span></button>
+    <button id="favAddBtn" title="Agregar a favoritos"><span class="material-symbols-outlined">star</span></button>
+    <select id="favList" title="Favoritos" style="max-width:220px;"></select>
+    <button id="favGoBtn" title="Abrir favorito"><span class="material-symbols-outlined">arrow_forward</span></button>
+    <button id="homeGoBtn" title="Ir a inicio"><span class="material-symbols-outlined">home</span></button>
+    <button id="homeSetBtn" title="Establecer como inicio \(desde input\)"><span class="material-symbols-outlined">push_pin</span></button>
+    <button id="optionsBtn" title="Opciones"><span class="material-symbols-outlined">settings</span></button>  </div>  <div id="optionsPanel" style="display:none; background:rgba(0,0,0,0.4); padding:6px 10px; border-top:1px solid #333;">
+    <label style="font-size:12px; opacity:.9;">Inicio:</label>
+    <input id="homeInput" type="text" placeholder="URL o HSML inline" style="width:50%; max-width:520px;">
+    <button id="homeSaveBtn" title="Guardar inicio">Guardar</button>
+    <button id="optionsCloseBtn" title="Cerrar"><span class="material-symbols-outlined">close</span></button>  </div> <canvas id="canvas"></canvas>
 
   <div id="devPanel">
     <div id="devPanelHeader">
-      <button id="inspectorTabBtn" class="devTabBtn">Inspector</button>
-      <button id="statusTabBtn" class="devTabBtn">Status</button>
-      <button id="toggleFreeCameraBtn" class="devTabBtn">Capturar Mouse</button>
-      <button id="toggleLightingBtn" class="devTabBtn">Iluminación</button>
-      <button id="toggleGridBtn" class="devTabBtn">Grid</button>
-      <button id="reloadBtn" class="devTabBtn">Recargar</button>
+      <button id="inspectorTabBtn" class="devTabBtn" title="Inspector"><span class="material-symbols-outlined">explore</span></button>
+      <button id="statusTabBtn" class="devTabBtn" title="Estado"><span class="material-symbols-outlined">bar_chart</span></button>
+      <button id="toggleFreeCameraBtn" class="devTabBtn" title="Capturar/Liberar Mouse"><span class="material-symbols-outlined">mouse</span></button>
+      <button id="toggleLightingBtn" class="devTabBtn" title="Luz"><span class="material-symbols-outlined">light_mode</span></button>
+      <button id="toggleGridBtn" class="devTabBtn" title="Grid"><span class="material-symbols-outlined">grid_on</span></button>
+      <button id="reloadBtn" class="devTabBtn" title="Recargar"><span class="material-symbols-outlined">refresh</span></button>
     </div>
     <div id="inspectorView"><strong>Árbol Virtual HSML</strong><div id="treeView"></div></div>
     <div id="statusView">
@@ -528,9 +546,21 @@
         return nextY;
       }
       syncRig(){
-        const { xrRig, camera, input } = this.env;
-        xrRig.position.set(this.position.x, this.position.y - this.eyeHeight, this.position.z);
-        if(!input.isXR){ camera.position.set(0, this.eyeHeight, 0); }
+        const { xrRig, camera, input, renderer, THREE } = this.env;
+        if(input.isXR){
+          const camXR = renderer.xr.getCamera(camera);
+          const headWorld = new THREE.Vector3().setFromMatrixPosition(camXR.matrixWorld);
+          const headLocal = headWorld.clone();
+          xrRig.worldToLocal(headLocal);
+          xrRig.position.set(
+            this.position.x - headLocal.x,
+            this.position.y - headLocal.y,
+            this.position.z - headLocal.z
+          );
+        } else {
+          xrRig.position.set(this.position.x, this.position.y - this.eyeHeight, this.position.z);
+          camera.position.set(0, this.eyeHeight, 0);
+        }
       }
       update(_dt){ /* abstract */ }
     }
@@ -668,7 +698,8 @@
     }
 
     canvas.addEventListener('mousedown', ()=>{ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); emitUseFromPointer('mouse'); emitTouchFromPointer('mouse'); });
-    canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); emitTouchFromPointer('touch'); });
+    try { canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }, { passive: true }); }
+    catch(_) { canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }); }
     document.addEventListener('pointerlockchange', ()=>{ input.pointerLocked = (document.pointerLockElement===canvas); document.getElementById('toggleFreeCameraBtn').textContent = input.pointerLocked ? 'Liberar Mouse' : 'Capturar Mouse'; });
     document.addEventListener('mousemove', e=>{ if(!input.pointerLocked) return; yaw -= e.movementX*mouseSensitivity; pitch -= e.movementY*mouseSensitivity; const maxP=Math.PI/2-0.001; if(pitch>maxP)pitch=maxP; if(pitch<-maxP)pitch=-maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', {yaw,pitch}); });
 
@@ -1000,7 +1031,7 @@
       controllerState.update = (dt)=>player.update(dt);
       bindXRInputSources();
       camera.position.set(0, 0, 0); // en XR, la altura la pone el HMD
-      xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
+      player.syncRig();
       xrRig.rotation.set(0,0,0);
     });
     renderer.xr.addEventListener('sessionend',   ()=>{
@@ -1060,7 +1091,15 @@
       },
 
       camera: {
-        teleport(x,y,z){ player.position.set(x,y??player.eyeHeight,z); xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z); if(!input.isXR){ camera.position.set(0, player.eyeHeight, 0); } },
+        teleport(x,y,z){ 
+          player.position.set(x,y??player.eyeHeight,z);
+          xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
+          if(!input.isXR){ 
+            camera.position.set(0, player.eyeHeight, 0);
+          } else {
+            player.syncRig();
+          }
+        },
         setYawPitch(yawRad,pitchRad){ yaw=yawRad; pitch=pitchRad; if(!input.isXR){ camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } },
         getYawPitch(){ return { yaw, pitch }; },
         getPosition(){ return camera.getWorldPosition(new THREE.Vector3()); }
@@ -1096,7 +1135,38 @@
     // (Sin lógica de demo aquí; la demo vive dentro de DEFAULT_HSML)
 
     // ----------------- Carga HSML -----------------
-    async function loadHSML(){ const inputEl=document.getElementById('urlInput'); const input=inputEl?inputEl.value.trim():''; let hsml=''; const hashLevel=new URLSearchParams(location.hash.replace('#','')).get('level'); if(!input && hashLevel){ try{ const res=await fetch(hashLevel); hsml=await res.text(); }catch(e){ console.warn('No se pudo cargar hash level, usando demo'); hsml=DEFAULT_HSML; } } else if (input && input.startsWith('<')){ hsml=input; } else if (input){ try{ const res=await fetch(input); hsml=await res.text(); }catch(e){ console.warn('No se pudo cargar URL, usando demo'); hsml=DEFAULT_HSML; } } else { hsml=DEFAULT_HSML; } await importHSMLFromString(hsml); }
+    async function loadHSML(){
+      const inputEl=document.getElementById('urlInput');
+      const input=inputEl?inputEl.value.trim():'';
+      let hsml='';
+      const hashLevel=new URLSearchParams(location.hash.replace('#','')).get('level');
+      if(!input && hashLevel){
+        try{ const res=await fetch(hashLevel); hsml=await res.text(); }
+        catch(e){ console.warn('No se pudo cargar hash level, usando demo'); hsml=DEFAULT_HSML; }
+      } else if (!input && !hashLevel){
+        // Preferir "inicio" guardado en localStorage si existe
+        let home='';
+        try{ home = localStorage.getItem('hsml:home') || ''; }catch(_){ home=''; }
+        if(home){
+          if(inputEl) inputEl.value = home;
+          if(home.trim().startsWith('<')){ hsml = home; }
+          else {
+            try{ const res=await fetch(home); hsml=await res.text(); }
+            catch(e){ console.warn('No se pudo cargar HOME, usando demo'); hsml=DEFAULT_HSML; }
+          }
+        } else {
+          hsml = DEFAULT_HSML;
+        }
+      } else if (input && input.startsWith('<')){
+        hsml=input;
+      } else if (input){
+        try{ const res=await fetch(input); hsml=await res.text(); }
+        catch(e){ console.warn('No se pudo cargar URL, usando demo'); hsml=DEFAULT_HSML; }
+      } else {
+        hsml=DEFAULT_HSML;
+      }
+      await importHSMLFromString(hsml);
+    }
 
     async function importHSMLFromString(hsml){
       if (typeof hsml === 'string') { hsml = hsml.replace(/<\\\/script>/g, '<\/script>'); }
@@ -1109,11 +1179,17 @@
 
       // Ejecutar scripts (inline, src o code="...")
       const xml = new DOMParser().parseFromString(hsml, 'text/xml');
-      const rootEl = (xml.getElementsByTagName('hsml')[0]?.getElementsByTagName('space')[0]) || xml.getElementsByTagName('space')[0];
-      if(rootEl){
-        const scriptTags = rootEl.getElementsByTagName('script');
-        for (let i=0;i<scriptTags.length;i++){
-          const node=scriptTags[i];
+      let scriptNodes = [];
+      const hsmlEl = xml.getElementsByTagName('hsml')[0] || null;
+      if (hsmlEl){
+        scriptNodes = Array.from(hsmlEl.getElementsByTagName('script'));
+      } else {
+        const spaceEl = xml.getElementsByTagName('space')[0] || null;
+        if (spaceEl) scriptNodes = Array.from(spaceEl.getElementsByTagName('script'));
+      }
+      if (scriptNodes.length){
+        for (let i=0;i<scriptNodes.length;i++){
+          const node=scriptNodes[i];
           const src=node.getAttribute('src');
           const codeAttr=node.getAttribute('code');
           const inline=(node.textContent||'').trim();
@@ -1179,6 +1255,39 @@
     document.getElementById('toggleLightingBtn').addEventListener('click',()=>{ lightingEnabled=!lightingEnabled; if(lightingEnabled){ if(!scene.children.includes(ambientLight)) scene.add(ambientLight); if(!scene.children.includes(dirLight)) scene.add(dirLight); } else { scene.remove(ambientLight); scene.remove(dirLight); } });
     document.getElementById('toggleGridBtn').addEventListener('click',()=>{ gridHelper.visible=!gridHelper.visible; axesHelper.visible=gridHelper.visible; });
     document.getElementById('urlInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') loadHSML(); });
+
+    // --------- Favoritos / Inicio / Opciones ---------
+    const LS_FAVS = 'hsml:favorites';
+    const LS_HOME = 'hsml:home';
+    const favAddBtn = document.getElementById('favAddBtn');
+    const favList   = document.getElementById('favList');
+    const favGoBtn  = document.getElementById('favGoBtn');
+    const homeGoBtn = document.getElementById('homeGoBtn');
+    const homeSetBtn= document.getElementById('homeSetBtn');
+    const optionsBtn= document.getElementById('optionsBtn');
+    const optionsPanel=document.getElementById('optionsPanel');
+    const homeInput = document.getElementById('homeInput');
+    const homeSaveBtn=document.getElementById('homeSaveBtn');
+    const optionsCloseBtn=document.getElementById('optionsCloseBtn');
+
+    function loadFavs(){ try{ return JSON.parse(localStorage.getItem(LS_FAVS)||'[]'); }catch(_){ return []; } }
+    function saveFavs(arr){ try{ localStorage.setItem(LS_FAVS, JSON.stringify(arr)); }catch(_){ } }
+    function renderFavs(){ const favs=loadFavs(); if(favList){ favList.innerHTML=''; favs.forEach((f)=>{ const opt=document.createElement('option'); opt.value=f; opt.textContent=f; favList.appendChild(opt); }); } }
+    function addFav(v){ if(!v||!v.trim()) return; const favs=loadFavs(); if(!favs.includes(v)) { favs.push(v); saveFavs(favs); renderFavs(); } }
+
+    if(favAddBtn) favAddBtn.addEventListener('click', ()=>{ const v=document.getElementById('urlInput').value.trim(); if(v) addFav(v); });
+    if(favGoBtn) favGoBtn.addEventListener('click', ()=>{ const v=favList.value; if(v){ document.getElementById('urlInput').value=v; loadHSML(); }});
+    if(favList) favList.addEventListener('dblclick', ()=>{ const v=favList.value; if(v){ document.getElementById('urlInput').value=v; loadHSML(); }});
+
+    function getHome(){ try{ return localStorage.getItem(LS_HOME)||''; }catch(_){ return '';} }
+    function setHome(v){ try{ localStorage.setItem(LS_HOME, v||''); }catch(_){ } }
+    if(homeGoBtn) homeGoBtn.addEventListener('click', ()=>{ const v=getHome(); if(v){ document.getElementById('urlInput').value=v; loadHSML(); }});
+    if(homeSetBtn) homeSetBtn.addEventListener('click', ()=>{ const v=document.getElementById('urlInput').value.trim(); if(v){ setHome(v); if(homeInput) homeInput.value=v; }});
+    if(optionsBtn) optionsBtn.addEventListener('click', ()=>{ if(!optionsPanel) return; optionsPanel.style.display = (optionsPanel.style.display==='none'||optionsPanel.style.display==='')? 'block':'none'; if(homeInput) homeInput.value=getHome(); });
+    if(homeSaveBtn) homeSaveBtn.addEventListener('click', ()=>{ if(!homeInput) return; setHome(homeInput.value.trim()); if(optionsPanel) optionsPanel.style.display='none'; });
+    if(optionsCloseBtn) optionsCloseBtn.addEventListener('click', ()=>{ if(optionsPanel) optionsPanel.style.display='none'; });
+
+    renderFavs();
 
     // ----------------- Demo por defecto mínima -----------------
 const DEFAULT_HSML = `
