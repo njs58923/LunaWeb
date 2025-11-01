@@ -1,0 +1,15 @@
+<hsml>
+  <space>
+    <group class="spin">
+      <box id="box" color="#546e7a" y="0"/>
+      <text id="text" text="..." y="1" />
+    </group>
+  </space>
+  <script>
+    const { to, title } = dimension.state;
+    const box = dimension.get('box');
+    box.addEventListener('toque', () => { location.href = to; });
+    const text = dimension.get('text');
+    text.setAttribute('text', title);
+  </script>
+</hsml>

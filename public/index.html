@@ -441,7 +441,6 @@
             const incRoot = parsed.vnode;
             if (incRoot) {
               (incRoot.children || []).forEach(ch => { vnode.appendChild(ch); obj.userData.includeKeys.add(ch.key); });
-              for (const ch of incRoot.children) { await buildSceneFromVirtual(ch, obj); }
               obj.userData.includeSrc = includeUrl;
               obj.userData.includeBase = includeUrl;
               // Asegurar que los IDs del include estén indexados antes de correr scripts
@@ -458,6 +457,14 @@
                   const spaceEl = xml.getElementsByTagName('space')[0] || null;
                   if (spaceEl) scriptNodes = Array.from(spaceEl.getElementsByTagName('script'));
                 }
+                // Mapear data-* del <include> a un overlay temporal de state
+                const includeState = {};
+                for (const k in a) {
+                  if (k && k.startsWith('data-')) {
+                    const key = k.slice(5);
+                    includeState[key] = a[k];
+                  }
+                }
                 if (scriptNodes.length) {
                   for (const node of scriptNodes) {
                     const ssrc = node.getAttribute('src');
@@ -467,12 +474,12 @@
                       const abs = new URL(ssrc, includeUrl).toString();
                       fetch(abs)
                         .then(r => r.text())
-                        .then(code => runSandbox(code))
+                        .then(code => runSandboxWithState(code, includeState))
                         .catch(err => console.error('Script load error', abs, err));
                     } else if (codeAttr && codeAttr.trim()) {
-                      runSandbox(codeAttr);
+                      runSandboxWithState(codeAttr, includeState);
                     } else if (inline) {
-                      runSandbox(inline);
+                      runSandboxWithState(inline, includeState);
                     }
                   }
                 }
@@ -565,15 +572,19 @@
             if (hsmlEl) scriptNodes = Array.from(hsmlEl.getElementsByTagName('script'));
             else { const spaceEl = xml.getElementsByTagName('space')[0] || null; if (spaceEl) scriptNodes = Array.from(spaceEl.getElementsByTagName('script')); }
             if (scriptNodes.length) {
+              // Overlay de state desde data-* del <include>
+              const includeState = {};
+              const attrs = vnode.attributes||{};
+              for (const k in attrs){ if (k && k.startsWith('data-')){ includeState[k.slice(5)] = attrs[k]; } }
               for (const node of scriptNodes) {
                 const ssrc = node.getAttribute('src');
                 const codeAttr = node.getAttribute('code');
                 const inline = (node.textContent || '').trim();
                 if (ssrc) {
                   const absScript = new URL(ssrc, abs).toString();
-                  fetch(absScript).then(r=>r.text()).then(code=>runSandbox(code)).catch(err=>console.error('Script load error', absScript, err));
-                } else if (codeAttr && codeAttr.trim()) { runSandbox(codeAttr); }
-                else if (inline) { runSandbox(inline); }
+                  fetch(absScript).then(r=>r.text()).then(code=>runSandboxWithState(code, includeState)).catch(err=>console.error('Script load error', absScript, err));
+                } else if (codeAttr && codeAttr.trim()) { runSandboxWithState(codeAttr, includeState); }
+                else if (inline) { runSandboxWithState(inline, includeState); }
               }
             }
           } catch(e){ console.error('Include script error', abs, e); }
@@ -1382,6 +1393,26 @@
         fn(dimension, setUpdate, setTimeout, setInterval, sandboxLocation);
       } catch(err){
         console.error('HSML <script> error:', err);
+      }
+    }
+
+    // Ejecuta un script con overlay temporal en dimension.state (para includes con data-*)
+    function runSandboxWithState(code, stateOverlay){
+      const backup = new Map();
+      if (stateOverlay && typeof stateOverlay === 'object'){
+        for (const k of Object.keys(stateOverlay)){
+          backup.set(k, Object.prototype.hasOwnProperty.call(dimension.state, k) ? dimension.state[k] : Symbol.for('@@__unset'));
+          dimension.state[k] = stateOverlay[k];
+        }
+      }
+      try{
+        runSandbox(code);
+      } finally {
+        if (backup.size){
+          for (const [k, v] of backup.entries()){
+            if (v === Symbol.for('@@__unset')) delete dimension.state[k]; else dimension.state[k] = v;
+          }
+        }
       }
     }
 

@@ -5,14 +5,8 @@
   </head>
 
   <space>
-    <include id="sounds" src="sampleSound.html"/>
+      <include src="utils/linkBox.html" data-to="sampleSound.html" data-title="Ir a Pruebas de sonido"/>
+      <!-- <include src="sampleSound.html" /> -->
   </space>
-
-  <script>
-    setTimeout(()=> {
-      const node = dimension.get("sounds")
-      node.setAttribute("src", undefined)
-    }, 2000)
-  </script>
 
 </hsml>
