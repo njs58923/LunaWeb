@@ -689,7 +689,6 @@
       for (const key of dirtyColliders){
         const col = keyToCollider.get(key);
         if (!col) continue;
-        // Recalcular directamente AABB mundial desde el objeto
         col.object.updateMatrixWorld(true);
         col.worldBox.setFromObject(col.object);
         col.min.copy(col.worldBox.min);
@@ -732,8 +731,46 @@
     const audioListener = new THREE.AudioListener();
     camera.add(audioListener);
     const audioLoader = new THREE.AudioLoader();
-    function playSoundOneShot(url, volume=0.7){ const s = new THREE.Audio(audioListener); audioLoader.load(url, buffer=>{ s.setBuffer(buffer); s.setVolume(volume); s.play(); }); return s; }
-    function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){ const a = new THREE.PositionalAudio(audioListener); audioLoader.load(url, buffer=>{ if(!a || !a.parent) return; a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); }); obj.add(a); return a; }
+
+    // PATCH: registro global de one-shots + apagado total
+    const activeOneShots = new Set();
+    function stopAllAudio(){
+      try{
+        scene.traverse(n=>{
+          if(n && n.isAudio){ try{ n.stop(); }catch(_){} }
+          if(n && n.userData && n.userData.audio){ try{ n.userData.audio.stop(); }catch(_){} }
+        });
+      }catch(_){}
+      activeOneShots.forEach(a=>{ try{ a.stop(); }catch(_){} });
+      activeOneShots.clear();
+    }
+
+    // PATCH: one-shot seguro y autoclean
+    function playSoundOneShot(url, volume=0.7){
+      const s = new THREE.Audio(audioListener);
+      activeOneShots.add(s);
+      audioLoader.load(url, buffer=>{
+        if(!s) return;
+        try{
+          s.setBuffer(buffer);
+          s.setVolume(volume);
+          s.play();
+          if (s.source && typeof s.source.addEventListener === 'function'){
+            s.source.addEventListener('ended', ()=>{ activeOneShots.delete(s); }, { once:true });
+          } else {
+            const ms = Math.max(200, (buffer.duration||0)*1000 + 100);
+            setTimeout(()=> activeOneShots.delete(s), ms);
+          }
+        }catch(_){}
+      });
+      return s;
+    }
+
+    function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){
+      const a = new THREE.PositionalAudio(audioListener);
+      audioLoader.load(url, buffer=>{ if(!a || !a.parent) return; a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); });
+      obj.add(a); return a;
+    }
     function stopAudioRecursive(root){ if(!root) return; const toStop=[]; root.traverse(n=>{ if(n.isAudio){ toStop.push(n); } if(n.userData && n.userData.audio){ toStop.push(n.userData.audio); } }); toStop.forEach(a=>{ try{ a.stop(); }catch(_){} }); }
 
     // ----------------- Controlador de personaje (abstraído) -----------------
@@ -1076,7 +1113,6 @@
       for(const ctrl of controllers){
         if(!ctrl) continue; const tip=getCtrlTip(ctrl);
         for (const obj of interactiveObjects){
-          // si tiene collider, usar su worldBox; si no, calcular on-demand
           const k = obj.userData?.key;
           const col = k ? keyToCollider.get(k) : null;
           if (col){
@@ -1228,6 +1264,7 @@
     }
 
     async function importHSMLFromString(hsml){
+      stopAllAudio();
       if (typeof hsml === 'string') { hsml = hsml.replace(/<\\\/script>/g, '<\/script>'); }
       scene.children.slice().forEach(obj=>{ const keep = (obj===gridHelper)||(obj===axesHelper)||(obj===ambientLight)||(obj===dirLight)||(obj===xrRig); if(!keep){ stopAudioRecursive(obj); scene.remove(obj); } });
       nodeKeyToObject.clear(); VirtualNode.nextKey=1; userUpdateFunctions.clear(); clearColliders();
