@@ -42,7 +42,7 @@
     <button id="loadButton">Cargar HSML</button>
     <button id="toggleDevPanel">DevTools</button>
     <button id="exportBtn">Exportar HSML</button>
-    <span id="smallNote">Click para capturar mouse • WASD moverse • Shift sprint • Space salto • R recargar</span>
+    <span id="smallNote">Click: capturar mouse • WASD moverse • Shift sprint • Space salto • R recargar • VR: stick izq. mover, stick der. girar, trigger usar</span>
   </div>
 
   <canvas id="canvas"></canvas>
@@ -80,14 +80,9 @@
         this.children=[]; 
         this.key=VirtualNode.nextKey++;
       } 
-      setAttribute(a,v){ 
-        this.attributes[a]=v;
-      } 
-      appendChild(c){
-        this.children.push(c);
-      }
+      setAttribute(a,v){ this.attributes[a]=v; } 
+      appendChild(c){ this.children.push(c); }
     }
-    
     VirtualNode.nextKey = 1;
 
     let virtualDOM = null;
@@ -165,12 +160,10 @@
 
     function clearColliders(){ staticColliders.length=0; }
 
-    // collider="true" (o vacío) para primitivas; se ignoran modelos de alto poligonaje.
     function isColliderEnabled(attrs){
       if (attrs.collider === undefined) return false;
       const val = String(attrs.collider).toLowerCase().trim();
       if (val === '' || val === 'true' || val === '1' || val === 'yes' || val === 'on') return true;
-      // compat: viejo "box" => tratar como true
       if (val === 'box') return true;
       return false;
     }
@@ -178,8 +171,6 @@
     function registerColliderFromAttrs(vnode, obj){
       const a = vnode.attributes || {};
       if (!isColliderEnabled(a)) return;
-
-      // Solo primitivas
       const tag = vnode.tag.toLowerCase();
       if (!['box','plane','sphere'].includes(tag)) return;
 
@@ -191,19 +182,13 @@
           return new THREE.Vector3(w/2, h/2, d/2);
         };
       } else if (tag==='plane'){
-        // Plane horizontal (XZ). Grosor configurable (por defecto 0.1)
-        computeHalf = ()=>{
-          const sx=obj.scale.x, sy=obj.scale.y, sz=obj.scale.z;
-          const w=parseFloat(a.width||5)*sx, d=parseFloat(a.height||5)*sz;
-          const thick=parseFloat(a.thickness ?? 0.1)*sy;
-          return new THREE.Vector3(w/2, thick/2, d/2);
-        };
+        const sx=obj.scale.x, sy=obj.scale.y, sz=obj.scale.z;
+        const w=parseFloat(a.width||5)*sx, d=parseFloat(a.height||5)*sz;
+        const thick=parseFloat(a.thickness ?? 0.1)*sy;
+        return new THREE.Vector3(w/2, thick/2, d/2);
       } else if (tag==='sphere'){
-        computeHalf = ()=>{
-          const s=obj.scale.x; // asumimos uniforme
-          const r=parseFloat(a.radius||0.5)*s;
-          return new THREE.Vector3(r, r, r);
-        };
+        const s=obj.scale.x; const r=parseFloat(a.radius||0.5)*s;
+        return new THREE.Vector3(r, r, r);
       }
 
       const handle = {
@@ -212,19 +197,13 @@
         min: new THREE.Vector3(),
         max: new THREE.Vector3(),
         half: new THREE.Vector3(),
-        // recomputa half a partir de attrs y escala actual
-        recalcHalf(){
-          this.half.copy(computeHalf());
-        },
+        recalcHalf(){ this.half.copy(computeHalf()); },
         __id: Math.random().toString(36).slice(2)
       };
       handle.recalcHalf();
-
-      // priming inicial
       const center = obj.getWorldPosition(new THREE.Vector3());
       handle.min.set(center.x - handle.half.x, center.y - handle.half.y, center.z - handle.half.z);
       handle.max.set(center.x + handle.half.x, center.y + handle.half.y, center.z + handle.half.z);
-
       staticColliders.push(handle);
       return handle;
     }
@@ -242,31 +221,25 @@
       else if (tag==='audio'){ obj=new THREE.Object3D(); }
       else { obj=new THREE.Object3D(); }
 
-      // Visibilidad declarativa
       if (String(a.visible).toLowerCase()==='false') obj.visible = false;
 
       obj.userData.key = vnode.key; parentObj.add(obj); nodeKeyToObject.set(vnode.key, obj);
 
       vnode.children.forEach(child=>{ buildSceneFromVirtual(child, obj); });
 
-      // Behaviors por clase (genéricos)
       const behaviors = new Set(classList);
       if (behaviors.has('spin')) userUpdateFunctions.add((dt)=>{ vnode.attributes.ry = (parseFloat(vnode.attributes.ry||0)+dt)% (Math.PI*2); });
       if (behaviors.has('pulse')) { let t=0; const amp=parseFloat(a.amp||0.6), speed=parseFloat(a.speed||1.5), y0=parseFloat(a.y||0); userUpdateFunctions.add(dt=>{ t+=dt*speed; vnode.attributes.y = (y0 + Math.sin(t)*amp).toFixed(5); }); }
 
-      // Registrar colliders estáticos a partir de atributos (nuevo booleano)
       registerColliderFromAttrs(vnode, obj);
     }
 
     function applyTransformsRecursively(vnode){
       const obj=nodeKeyToObject.get(vnode.key); if(obj){ const attrs=vnode.attributes||{};
-        // Escala
         if (attrs.scale!==undefined){ const s=parseFloat(attrs.scale); if(!isNaN(s)) obj.scale.set(s,s,s); }
-        // Posición: componentes provistos
         if (attrs.x!==undefined) obj.position.x = parseFloat(attrs.x)||0;
         if (attrs.y!==undefined) obj.position.y = parseFloat(attrs.y)||0;
         if (attrs.z!==undefined) obj.position.z = parseFloat(attrs.z)||0;
-        // Rotación: preserva defaults si no se provee
         if (attrs.rx!==undefined) obj.rotation.x = parseFloat(attrs.rx)||0;
         if (attrs.ry!==undefined) obj.rotation.y = parseFloat(attrs.ry)||0;
         if (attrs.rz!==undefined) obj.rotation.z = parseFloat(attrs.rz)||0;
@@ -278,7 +251,7 @@
     function updateDevTool(){ const treeView=document.getElementById('treeView'); treeView.innerHTML=''; if(!virtualDOM) return; const domTree=buildVirtualTreeHTML(virtualDOM); if(domTree) treeView.appendChild(domTree); }
     function buildVirtualTreeHTML(vnode){ const li=document.createElement('li'); const header=document.createElement('div'); header.style.display='flex'; header.style.flexWrap='wrap'; header.style.alignItems='center'; const tagSpan=document.createElement('span'); tagSpan.textContent=`<${vnode.tag}>`; header.appendChild(tagSpan); for(const an in vnode.attributes){ const av=vnode.attributes[an]; const label=document.createElement('span'); label.classList.add('attrLabel'); label.textContent=` ${an}="`; const inp=document.createElement('span'); inp.classList.add('attrInput'); inp.contentEditable=true; inp.textContent=av; inp.addEventListener('blur',()=>{ vnode.attributes[an]=inp.textContent.trim(); scheduleDevToolUpdate(); }); label.appendChild(inp); const q=document.createElement('span'); q.textContent='"'; label.appendChild(q); header.appendChild(label); } const centerBtn=document.createElement('button'); centerBtn.textContent='Centrar'; centerBtn.classList.add('actionBtn'); centerBtn.addEventListener('click',e=>{ e.stopPropagation(); scene.traverse(obj=>{ if(obj.userData && obj.userData.key===vnode.key) centerCameraOnObject(obj); }); }); header.appendChild(centerBtn); const removeBtn=document.createElement('button'); removeBtn.textContent='Eliminar'; removeBtn.classList.add('actionBtn'); removeBtn.addEventListener('click',e=>{ e.stopPropagation(); removeNodeByKey(virtualDOM, vnode.key); const obj=nodeKeyToObject.get(vnode.key); if(obj&&obj.parent) obj.parent.remove(obj); nodeKeyToObject.delete(vnode.key); scheduleDevToolUpdate(); }); header.appendChild(removeBtn); li.appendChild(header); if(vnode.children.length>0){ const ul=document.createElement('ul'); vnode.children.forEach(ch=>{ const c=buildVirtualTreeHTML(ch); if(c) ul.appendChild(c); }); li.appendChild(ul); } return li; }
     function removeNodeByKey(rootVNode,key){ if(!rootVNode||!rootVNode.children) return false; for(let i=0;i<rootVNode.children.length;i++){ if(rootVNode.children[i].key===key){ rootVNode.children.splice(i,1); return true; } else { if(removeNodeByKey(rootVNode.children[i],key)) return true; } } return false; }
-    function centerCameraOnObject(obj){ const pos=new THREE.Vector3(); obj.getWorldPosition(pos); player.position.set(pos.x, player.position.y, pos.z+5); yaw = Math.atan2((player.position.x - pos.x), (player.position.z - pos.z)); camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); }
+    function centerCameraOnObject(obj){ const pos=new THREE.Vector3(); obj.getWorldPosition(pos); player.position.set(pos.x, player.position.y, pos.z+5); yaw = Math.atan2((player.position.x - pos.x), (player.position.z - pos.z)); if(!input.isXR){ camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z); }
 
     // ----------------- Render/Scene Setup -----------------
     const canvas=document.getElementById('canvas');
@@ -291,63 +264,194 @@
 
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
 
+    // RIG del usuario
+    const xrRig = new THREE.Group();
+    scene.add(xrRig);
+    xrRig.add(camera);
+
     window.addEventListener('resize', ()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); dirLight.position.set(4,10,6);
     scene.add(ambientLight); scene.add(dirLight); scene.add(gridHelper); scene.add(axesHelper);
 
-    // ----------------- Audio helpers (compat) -----------------
+    // ----------------- Audio helpers -----------------
     const audioListener = new THREE.AudioListener();
     camera.add(audioListener);
     const audioLoader = new THREE.AudioLoader();
     function playSoundOneShot(url, volume=0.7){ const s = new THREE.Audio(audioListener); audioLoader.load(url, buffer=>{ s.setBuffer(buffer); s.setVolume(volume); s.play(); }); return s; }
-    function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){
-      const a = new THREE.PositionalAudio(audioListener); audioLoader.load(url, buffer=>{ a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); }); obj.add(a); return a;
+    function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){ const a = new THREE.PositionalAudio(audioListener); audioLoader.load(url, buffer=>{ a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); }); obj.add(a); return a; }
+
+    // ----------------- Controlador de personaje (abstraído) -----------------
+    const input = { keys:{}, pointerLocked:false, isXR:false };
+
+    class PlayerBase {
+      constructor(env, opts={}){
+        this.env = env;
+        this.position   = opts.position   || new THREE.Vector3(0,1.7,6);
+        this.radius     = opts.radius     ?? 0.4;
+        this.eyeHeight  = opts.eyeHeight  ?? 1.7;
+        this.speed      = opts.speed      ?? 3.5;
+        this.sprintMult = opts.sprintMult ?? 1.6;
+        this.gravity    = opts.gravity    ?? 18.0;
+        this.jumpSpeed  = opts.jumpSpeed  ?? 6.0;
+        this.velY = 0; this.grounded=false;
+      }
+      applyVerticalPhysics(dt, desiredX, desiredZ){
+        const { getGroundHeightAt, getCeilingHeightAt } = this.env.helpers;
+        const groundY = getGroundHeightAt(desiredX, desiredZ);
+        this.velY -= this.gravity * dt;
+        let nextY = this.position.y + this.velY * dt;
+        if (nextY - this.eyeHeight <= groundY){
+          nextY = groundY + this.eyeHeight; this.velY = 0; this.grounded = true;
+        } else {
+          this.grounded = false;
+        }
+        const ceil = getCeilingHeightAt(desiredX, desiredZ);
+        if (ceil < Infinity && nextY >= ceil - 1e-3){
+          nextY = Math.min(nextY, ceil - 1e-3);
+          if (this.velY>0) this.velY = 0;
+        }
+        return nextY;
+      }
+      syncRig(){
+        const { xrRig, camera, input } = this.env;
+        xrRig.position.set(this.position.x, this.position.y - this.eyeHeight, this.position.z);
+        if(!input.isXR){ camera.position.set(0, this.eyeHeight, 0); }
+      }
+      update(_dt){ /* abstract */ }
     }
 
-    // ----------------- Controlador de personaje (con gravedad/salto) -----------------
-    // Unidades por segundo
-    const player = {
-      position: new THREE.Vector3(0,1.7,6),
-      radius: 0.4,
-      eyeHeight: 1.7,
-      speed: 3.5,
-      sprintMult: 1.6,
-      gravity: 18.0,
-      jumpSpeed: 6.0,
-      velY: 0,
-      grounded: false
-    };
-    camera.position.copy(player.position);
-
-    const input = { keys:{}, pointerLocked:false, isXR:false };
-    const controllerState = { update: fpsCharacterController, enabled:true };
-
+    // Nota: mantenemos yaw/pitch globales para no romper la API de camera existente
     let yaw=0, pitch=0; const mouseSensitivity=0.0022;
+
+    class DesktopPlayer extends PlayerBase {
+      update(dt){
+        const { THREE, camera, xrRig, input, helpers } = this.env;
+        const forward = new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
+        const right   = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), forward).normalize();
+        let move = new THREE.Vector3();
+        const base = this.speed * ( (input.keys['ShiftLeft']||input.keys['ShiftRight']) ? this.sprintMult : 1 );
+        if(input.keys['KeyW']) move.add(forward);
+        if(input.keys['KeyS']) move.addScaledVector(forward,-1);
+        if(input.keys['KeyA']) move.addScaledVector(right,-1);
+        if(input.keys['KeyD']) move.add(right);
+        if (move.lengthSq()>1e-6) move.normalize().multiplyScalar(base*dt);
+
+        let desired = this.position.clone().add(move);
+        desired = helpers.resolveCollisionsXZ(desired, this.radius);
+
+        if (input.keys['Space'] && this.grounded) this.velY = this.jumpSpeed;
+        const nextY = this.applyVerticalPhysics(dt, desired.x, desired.z);
+        this.position.set(desired.x, nextY, desired.z);
+
+        xrRig.position.set(this.position.x, this.position.y - this.eyeHeight, this.position.z);
+        if(!input.isXR){ camera.position.set(0, this.eyeHeight, 0); }
+      }
+    }
+
+    class VRPlayer extends PlayerBase {
+      update(dt){
+        const { THREE, renderer, camera, input, helpers } = this.env;
+        const session = renderer.xr.getSession();
+        if(!session){ return; }
+
+        const leftGp  = xrSources.left?.gamepad || null;
+        const rightGp = xrSources.right?.gamepad || null;
+
+        let lx = getAxisSafe(leftGp,  2, 0);
+        let ly = getAxisSafe(leftGp,  3, 1);
+        let rx = getAxisSafe(rightGp, 2, 0);
+
+        const dead=0.18, turnDead=0.3;
+        if(Math.abs(lx)<dead) lx=0;
+        if(Math.abs(ly)<dead) ly=0;
+        if(Math.abs(rx)<turnDead) rx=0;
+
+        const camXR = renderer.xr.getCamera(camera);
+        const Y_UP = new THREE.Vector3(0,1,0);
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camXR.quaternion); dir.y=0; dir.normalize();
+        const right = new THREE.Vector3().crossVectors(Y_UP, dir).normalize();
+
+        if(!axisSign.calibrated && (Math.abs(lx)>0.6 || Math.abs(ly)>0.6)){
+          const testF = dir.clone().multiplyScalar(-ly);
+          axisSign.y = (testF.dot(dir) >= 0) ? 1 : -1;
+          const testS = right.clone().multiplyScalar(lx);
+          axisSign.x = (testS.dot(right) >= 0) ? 1 : -1;
+          axisSign.calibrated = true;
+        }
+
+        const base = this.speed;
+        let move = new THREE.Vector3();
+        move.addScaledVector(dir,   axisSign.y * (-ly));
+        move.addScaledVector(right, axisSign.x * ( lx));
+
+        if(move.lengthSq()>1e-6){
+          move.normalize().multiplyScalar(base*dt);
+          let desired = this.position.clone().add(move);
+          desired = helpers.resolveCollisionsXZ(desired, this.radius);
+          const nextY = this.applyVerticalPhysics(dt, desired.x, desired.z);
+          this.position.set(desired.x, nextY, desired.z);
+        } else {
+          const groundY = helpers.getGroundHeightAt(this.position.x, this.position.z);
+          this.velY -= this.gravity*dt;
+          let nextY = this.position.y + this.velY*dt;
+          if (nextY - this.eyeHeight <= groundY){ nextY = groundY + this.eyeHeight; this.velY=0; this.grounded=true; } else this.grounded=false;
+          this.position.y = nextY;
+        }
+
+        if(rx!==0){
+          const turnSpeed = 1.6;
+          yawRigAroundViewer(-rx * turnSpeed * dt);
+        }
+
+        this.syncRig();
+      }
+    }
+
+    const env = {
+      THREE,
+      scene,
+      camera,
+      renderer,
+      xrRig,
+      input,
+      helpers: { resolveCollisionsXZ, getGroundHeightAt, getCeilingHeightAt }
+    };
+
+    let player = new DesktopPlayer(env);
+    xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
+    camera.position.set(0, player.eyeHeight, 0);
+
+    const controllerState = { update: (dt)=>player.update(dt), enabled:true };
 
     document.addEventListener('keydown', e=>{ input.keys[e.code]=true; emit('key:down', e); if(e.code==='KeyR') loadHSML(); });
     document.addEventListener('keyup',   e=>{ input.keys[e.code]=false; emit('key:up', e); });
 
-    function lockPointer(){ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); }
-    canvas.addEventListener('mousedown', ()=>{ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); emit('input:use', { source:'mouse' }); });
-    canvas.addEventListener('touchstart', ()=>{ emit('input:use', { source:'touch' }); });
+    // Unificador de "usar"
+    function emitUseFromPointer(source, ctrl=null){
+      let hit = null;
+      if (input.isXR){
+        hit = (ctrl ? pickFromController(ctrl) : null) || pickFromController(xrCtrl1) || pickFromController(xrCtrl2) || pickCenter();
+      } else {
+        hit = pickCenter();
+      }
+      emit('input:use', { source, hit });
+    }
 
+    canvas.addEventListener('mousedown', ()=>{ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); emitUseFromPointer('mouse'); });
+    canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); });
     document.addEventListener('pointerlockchange', ()=>{ input.pointerLocked = (document.pointerLockElement===canvas); document.getElementById('toggleFreeCameraBtn').textContent = input.pointerLocked ? 'Liberar Mouse' : 'Capturar Mouse'; });
-
     document.addEventListener('mousemove', e=>{ if(!input.pointerLocked) return; yaw -= e.movementX*mouseSensitivity; pitch -= e.movementY*mouseSensitivity; const maxP=Math.PI/2-0.001; if(pitch>maxP)pitch=maxP; if(pitch<-maxP)pitch=-maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', {yaw,pitch}); });
 
-    // Físicas básicas: colliders estáticos y suelos/techos por AABB
+    // Físicas/colliders
     const staticColliders = [];
-
     function addBoxColliderFor(obj, size){
       const handle = {
-        object: obj,
-        vnode: null,
-        min: new THREE.Vector3(),
-        max: new THREE.Vector3(),
+        object: obj, vnode: null,
+        min: new THREE.Vector3(), max: new THREE.Vector3(),
         half: new THREE.Vector3(size.x/2, size.y/2, size.z/2),
-        recalcHalf(){ /* para API pública: fijo */ },
+        recalcHalf(){},
         __id: Math.random().toString(36).slice(2)
       };
       const center = obj.getWorldPosition(new THREE.Vector3());
@@ -356,7 +460,6 @@
       staticColliders.push(handle); 
       return handle;
     }
-
     function updateColliderAABBs(){
       for(const c of staticColliders){
         if (typeof c.recalcHalf === 'function') c.recalcHalf();
@@ -365,19 +468,24 @@
         c.max.set(center.x + c.half.x, center.y + c.half.y, center.z + c.half.z);
       }
     }
-
     function getGroundHeightAt(x,z){ let gy = -Infinity; for(const c of staticColliders){ if(x>=c.min.x && x<=c.max.x && z>=c.min.z && z<=c.max.z){ gy = Math.max(gy, c.max.y); } } return (gy===-Infinity)? 0 : gy; }
     function getCeilingHeightAt(x,z){ let cy = Infinity; for(const c of staticColliders){ if(x>=c.min.x && x<=c.max.x && z>=c.min.z && z<=c.max.z){ cy = Math.min(cy, c.min.y); } } return cy; }
-
     function resolveCollisionsXZ(pos, r){
       let p = pos.clone();
-      for(const c of staticColliders){ const min=c.min, max=c.max; const closestX=Math.max(min.x, Math.min(p.x, max.x)); const closestZ=Math.max(min.z, Math.min(p.z, max.z)); const dx=p.x-closestX, dz=p.z-closestZ; const d2=dx*dx+dz*dz; const rr=r*r; if(d2<rr){ const d=Math.sqrt(Math.max(d2,1e-6)); const nx=dx/d, nz=dz/d; const push = (r - d) + 1e-3; p.x += nx*push; p.z += nz*push; } }
+      for(const c of staticColliders){
+        const min=c.min, max=c.max;
+        const closestX=Math.max(min.x, Math.min(p.x, max.x));
+        const closestZ=Math.max(min.z, Math.min(p.z, max.z));
+        const dx=p.x-closestX, dz=p.z-closestZ;
+        const d2=dx*dx+dz*dz, rr=r*r;
+        if(d2<rr){ const d=Math.sqrt(Math.max(d2,1e-6)); const nx=dx/d, nz=dz/d; const push=(r-d)+1e-3; p.x+=nx*push; p.z+=nz*push; }
+      }
       return p;
     }
 
     function fpsCharacterController(dt){
       const forward = new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
-      const right   = new THREE.Vector3(1,0,0) .applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
+      const right   = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), forward).normalize();
       let move = new THREE.Vector3();
       const base = player.speed * ( (input.keys['ShiftLeft']||input.keys['ShiftRight']) ? player.sprintMult : 1 );
       if(input.keys['KeyW']) move.add(forward);
@@ -390,7 +498,7 @@
       let desired = player.position.clone().add(move);
       desired = resolveCollisionsXZ(desired, player.radius);
 
-      // Salto/gravedad (pie = y - eyeHeight)
+      // Salto/gravedad
       const groundY = getGroundHeightAt(desired.x, desired.z);
       if (input.keys['Space'] && player.grounded) player.velY = player.jumpSpeed;
       player.velY -= player.gravity * dt;
@@ -400,9 +508,7 @@
         nextY = groundY + player.eyeHeight;
         player.velY = 0;
         player.grounded = true;
-      } else {
-        player.grounded = false;
-      }
+      } else player.grounded = false;
 
       const ceil = getCeilingHeightAt(desired.x, desired.z);
       if (ceil < Infinity && nextY >= ceil - 1e-3){
@@ -411,14 +517,144 @@
       }
 
       player.position.set(desired.x, nextY, desired.z);
-      camera.position.copy(player.position);
+      // actualizar rig/cámara
+      xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
+      if(!input.isXR){ camera.position.set(0, player.eyeHeight, 0); }
     }
 
-    // ----------------- Raycast / "usar" (desktop + VR) -----------------
-    const raycaster = new THREE.Raycaster();
-    function pickCenter(far=100){ raycaster.setFromCamera({x:0,y:0}, camera); const hits=raycaster.intersectObjects(scene.children,true); if(!hits||!hits.length) return null; const h=hits[0]; return { object:h.object, point:h.point, distance:h.distance } }
+    // ----------------- VR: entrada y locomoción -----------------
+    const xrSources = { left:null, right:null };
+    const axisSign = { x: 1, y: 1, calibrated: false }; // autocalibra signos
 
-    // VR controllers: línea/ray y evento select => input:use
+    function bindXRInputSources(){
+      const session = renderer.xr.getSession();
+      if(!session) return;
+      const refresh = ()=>{
+        xrSources.left = xrSources.right = null;
+        for (const src of session.inputSources){
+          if(!src || !src.gamepad) continue;
+          if(src.handedness==='left')  xrSources.left  = src;
+          if(src.handedness==='right') xrSources.right = src;
+        }
+      };
+      refresh();
+      session.addEventListener('inputsourceschange', refresh);
+    }
+
+    function getAxisSafe(gp, ixPrimary, ixAlt){
+      if(!gp || !gp.axes) return 0;
+      const a = gp.axes;
+      if(a.length>ixPrimary && a[ixPrimary]!==undefined) return a[ixPrimary];
+      if(a.length>ixAlt     && a[ixAlt]    !==undefined) return a[ixAlt];
+      return 0;
+    }
+
+    const tmpV = new THREE.Vector3();
+    const Y_UP = new THREE.Vector3(0,1,0);
+
+    function yawRigAroundViewer(deltaYaw){
+      if(Math.abs(deltaYaw) < 1e-6) return;
+      const camXR = renderer.xr.getCamera(camera);
+      const eyeWorld = new THREE.Vector3().setFromMatrixPosition(camXR.matrixWorld);
+      const t1 = new THREE.Matrix4().makeTranslation(-eyeWorld.x, 0, -eyeWorld.z);
+      const r  = new THREE.Matrix4().makeRotationY(deltaYaw);
+      const t2 = new THREE.Matrix4().makeTranslation( eyeWorld.x, 0,  eyeWorld.z);
+      xrRig.applyMatrix4(t2.multiply(r).multiply(t1));
+    }
+
+    function vrCharacterController(dt){
+      const session = renderer.xr.getSession();
+      if(!session) return;
+
+      const leftGp  = xrSources.left?.gamepad || null;
+      const rightGp = xrSources.right?.gamepad || null;
+
+      // Ejes (índices primarios y fallback)
+      let lx = getAxisSafe(leftGp,  2, 0);
+      let ly = getAxisSafe(leftGp,  3, 1);
+      let rx = getAxisSafe(rightGp, 2, 0);
+
+      // Deadzones
+      const dead=0.18, turnDead=0.3;
+      if(Math.abs(lx)<dead) lx=0;
+      if(Math.abs(ly)<dead) ly=0;
+      if(Math.abs(rx)<turnDead) rx=0;
+
+      // Dirección del HMD (cabeza-relativo)
+      const camXR = renderer.xr.getCamera(camera);
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camXR.quaternion); dir.y=0; dir.normalize();
+      const right = new THREE.Vector3().crossVectors(Y_UP, dir).normalize();
+
+      // Autocalibración de signo (una vez)
+      if(!axisSign.calibrated && (Math.abs(lx)>0.6 || Math.abs(ly)>0.6)){
+        // Espera que empujar "adelante" avance hacia dir (dot > 0)
+        const testF = dir.clone().multiplyScalar(-ly);
+        axisSign.y = (testF.dot(dir) >= 0) ? 1 : -1;
+        // Espera que empujar "derecha" desplace hacia right (dot > 0)
+        const testS = right.clone().multiplyScalar(lx);
+        axisSign.x = (testS.dot(right) >= 0) ? 1 : -1;
+        axisSign.calibrated = true;
+      }
+
+      // Movimiento
+      const base = player.speed;
+      let move = new THREE.Vector3();
+      move.addScaledVector(dir,   axisSign.y * (-ly));
+      move.addScaledVector(right, axisSign.x * ( lx));
+
+      if(move.lengthSq()>1e-6){
+        move.normalize().multiplyScalar(base*dt);
+        let desired = player.position.clone().add(move);
+        desired = resolveCollisionsXZ(desired, player.radius);
+
+        // Gravedad
+        const groundY = getGroundHeightAt(desired.x, desired.z);
+        player.velY -= player.gravity * dt;
+        let nextY = player.position.y + player.velY*dt;
+        if (nextY - player.eyeHeight <= groundY){ nextY = groundY + player.eyeHeight; player.velY = 0; player.grounded=true; } else player.grounded=false;
+
+        const ceil = getCeilingHeightAt(desired.x, desired.z);
+        if(ceil < Infinity && nextY >= ceil - 1e-3){
+          nextY = Math.min(nextY, ceil - 1e-3);
+          if(player.velY>0) player.velY=0;
+        }
+        player.position.set(desired.x, nextY, desired.z);
+      } else {
+        // Solo gravedad
+        const groundY = getGroundHeightAt(player.position.x, player.position.z);
+        player.velY -= player.gravity*dt;
+        let nextY = player.position.y + player.velY*dt;
+        if (nextY - player.eyeHeight <= groundY){ nextY = groundY + player.eyeHeight; player.velY=0; player.grounded=true; } else player.grounded=false;
+        player.position.y = nextY;
+      }
+
+      // Giro suave con stick derecho (alrededor del visor)
+      if(rx!==0){
+        const turnSpeed = 1.6; // rad/s
+        yawRigAroundViewer(-rx * turnSpeed * dt);
+      }
+
+      // Aplicar pose del jugador al rig
+      xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
+    }
+
+    // ----------------- Raycast / "usar" -----------------
+    const raycaster = new THREE.Raycaster();
+    function pickCenter(far=100){
+      raycaster.far = far;
+      if(input.isXR){
+        const xrCam = renderer.xr.getCamera(camera);
+        raycaster.ray.origin.setFromMatrixPosition(xrCam.matrixWorld);
+        raycaster.ray.direction.set(0,0,-1).applyQuaternion(xrCam.quaternion);
+        const hits=raycaster.intersectObjects(scene.children,true);
+        if(!hits||!hits.length) return null; const h=hits[0]; return { object:h.object, point:h.point, distance:h.distance };
+      } else {
+        raycaster.setFromCamera({x:0,y:0}, camera);
+        const hits=raycaster.intersectObjects(scene.children,true);
+        if(!hits||!hits.length) return null; const h=hits[0]; return { object:h.object, point:h.point, distance:h.distance };
+      }
+    }
+
     const controllerModelFactory = new XRControllerModelFactory();
     const tempMatrix = new THREE.Matrix4();
     function buildXRRay(data){
@@ -435,6 +671,7 @@
     }
     function pickFromController(ctrl, far=100){
       tempMatrix.identity().extractRotation(ctrl.matrixWorld);
+      raycaster.far = far;
       raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
       raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
       const hits = raycaster.intersectObjects(scene.children,true);
@@ -445,16 +682,37 @@
     const xrCtrl1 = renderer.xr.getController(0);
     const xrCtrl2 = renderer.xr.getController(1);
     [xrCtrl1, xrCtrl2].forEach((ctrl)=>{
-      ctrl.addEventListener('connected', (e)=>{ ctrl.add(buildXRRay(e.data)); });
-      ctrl.addEventListener('disconnected', ()=>{ while(ctrl.children.length) ctrl.remove(ctrl.children[0]); });
-      ctrl.addEventListener('selectstart', ()=>{ emit('input:use', { source:'vr' }); });
-      scene.add(ctrl);
+      ctrl.addEventListener('connected', (e)=>{
+        ctrl.userData.handedness = e.data.handedness;
+        ctrl.add(buildXRRay(e.data));
+      });
+      ctrl.addEventListener('disconnected', ()=>{
+        while(ctrl.children.length) ctrl.remove(ctrl.children[0]);
+      });
+      // disparan el mismo "usar"
+      ctrl.addEventListener('selectstart', ()=>{ emitUseFromPointer('vr', ctrl); });
+      ctrl.addEventListener('select',      ()=>{ emitUseFromPointer('vr', ctrl); });
+      xrRig.add(ctrl);
     });
-    const grip1 = renderer.xr.getControllerGrip(0); grip1.add(controllerModelFactory.createControllerModel(grip1)); scene.add(grip1);
-    const grip2 = renderer.xr.getControllerGrip(1); grip2.add(controllerModelFactory.createControllerModel(grip2)); scene.add(grip2);
+    const grip1 = renderer.xr.getControllerGrip(0); grip1.add(controllerModelFactory.createControllerModel(grip1)); xrRig.add(grip1);
+    const grip2 = renderer.xr.getControllerGrip(1); grip2.add(controllerModelFactory.createControllerModel(grip2)); xrRig.add(grip2);
 
-    renderer.xr.addEventListener('sessionstart', ()=>{ input.isXR = true; });
-    renderer.xr.addEventListener('sessionend',   ()=>{ input.isXR = false; });
+    renderer.xr.addEventListener('sessionstart', ()=>{
+      input.isXR = true;
+      player = new VRPlayer(env);
+      controllerState.update = (dt)=>player.update(dt);
+      bindXRInputSources();
+      camera.position.set(0, 0, 0); // en XR, la altura la pone el HMD
+      xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
+      xrRig.rotation.set(0,0,0);
+    });
+    renderer.xr.addEventListener('sessionend',   ()=>{
+      input.isXR = false;
+      player = new DesktopPlayer(env);
+      controllerState.update = (dt)=>player.update(dt);
+      xrRig.rotation.set(0,0,0);
+      camera.position.set(0, player.eyeHeight, 0);
+    });
 
     // ----------------- Loop principal -----------------
     renderer.setAnimationLoop(animate);
@@ -466,8 +724,6 @@
       userUpdateFunctions.forEach(fn=>{ try{ fn(dt); }catch(e){ console.error('update error', e); } });
 
       if(virtualDOM) applyTransformsRecursively(virtualDOM);
-
-      // Alinear colliders con la pose real (y half dinámico)
       updateColliderAABBs();
 
       if(controllerState.enabled && controllerState.update) controllerState.update(dt);
@@ -481,7 +737,6 @@
 
     // ----------------- API pública (dimension) -----------------
     const dimension = {
-      // DOM virtual
       createElement: (tag)=>createProxiedNode(tag),
       create(tag, attrs={}, children=[]) { const node=createProxiedNode(tag); Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,v)); children.forEach(ch=>node.appendChild(ch)); return node; },
       appendChild(child){ if(!virtualDOM){ console.warn('No virtualDOM'); return; } virtualDOM.children.push(child); buildSceneFromVirtual(child, scene); scheduleDevToolUpdate(); },
@@ -493,13 +748,10 @@
       toHSML(){ return serializeHSML(virtualDOM); },
       importHSML(hsml){ importHSMLFromString(hsml); },
 
-      // Señales
       on, off, emit,
 
-      // Loop
       loop: { onUpdate(fn){ userUpdateFunctions.add(fn); return ()=>userUpdateFunctions.delete(fn); }, offUpdate(fn){ userUpdateFunctions.delete(fn); } },
 
-      // Entrada
       input: {
         isDown(code){ return !!input.keys[code]; },
         pointerLocked: ()=>input.pointerLocked,
@@ -508,19 +760,17 @@
         onUse(cb){ on('input:use', cb); return ()=>off('input:use', cb); }
       },
 
-      // Cámara/Player
       camera: {
-        teleport(x,y,z){ player.position.set(x,y??player.eyeHeight,z); camera.position.copy(player.position); },
-        setYawPitch(yawRad,pitchRad){ yaw=yawRad; pitch=pitchRad; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); },
+        teleport(x,y,z){ player.position.set(x,y??player.eyeHeight,z); xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z); if(!input.isXR){ camera.position.set(0, player.eyeHeight, 0); } },
+        setYawPitch(yawRad,pitchRad){ yaw=yawRad; pitch=pitchRad; if(!input.isXR){ camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } },
         getYawPitch(){ return { yaw, pitch }; },
-        getPosition(){ return camera.position.clone(); }
+        getPosition(){ return camera.getWorldPosition(new THREE.Vector3()); }
       },
       controller: {
         enable(v){ controllerState.enabled=!!v; },
         set(fn){ controllerState.update = fn; controllerState.enabled = true; }
       },
 
-      // Física / Consultas
       physics: {
         addBoxCollider: addBoxColliderFor,
         clearColliders,
@@ -530,25 +780,20 @@
         pickFromController: (i=0, far=100)=>{ const ctrl=[xrCtrl1,xrCtrl2][i]; if(!ctrl) return null; return pickFromController(ctrl, far); }
       },
 
-      // Audio
       audio: { play: playSoundOneShot, attachPositional: attachPositionalAudio },
 
-      // Utils
       math: MATH
     };
 
     const behaviorRegistry = new Map();
-
     function setUpdate(fn){ userUpdateFunctions.add(fn); }
-
     function serializeHSML(vnode){ if(!vnode) return ''; const attrs=Object.entries(vnode.attributes).map(([k,v])=>`${k}="${String(v)}"`).join(' '); const open=attrs?`<${vnode.tag} ${attrs}>`:`<${vnode.tag}>`; if(!vnode.children||vnode.children.length===0) return `${open}</${vnode.tag}>`; return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`; }
 
     // ----------------- Carga HSML -----------------
     async function loadHSML(){ const inputEl=document.getElementById('urlInput'); const input=inputEl?inputEl.value.trim():''; let hsml=''; const hashLevel=new URLSearchParams(location.hash.replace('#','')).get('level'); if(!input && hashLevel){ try{ const res=await fetch(hashLevel); hsml=await res.text(); }catch(e){ console.warn('No se pudo cargar hash level, usando demo'); hsml=DEFAULT_HSML; } } else if (input && input.startsWith('<')){ hsml=input; } else if (input){ try{ const res=await fetch(input); hsml=await res.text(); }catch(e){ console.warn('No se pudo cargar URL, usando demo'); hsml=DEFAULT_HSML; } } else { hsml=DEFAULT_HSML; } importHSMLFromString(hsml); }
 
     function importHSMLFromString(hsml){
-      // Reset escena (mantén luces y helpers)
-      scene.children.slice().forEach(obj=>{ const keep = (obj===gridHelper)||(obj===axesHelper)||(obj===ambientLight)||(obj===dirLight); if(!keep) scene.remove(obj); });
+      scene.children.slice().forEach(obj=>{ const keep = (obj===gridHelper)||(obj===axesHelper)||(obj===ambientLight)||(obj===dirLight)||(obj===xrRig); if(!keep) scene.remove(obj); });
       nodeKeyToObject.clear(); VirtualNode.nextKey=1; userUpdateFunctions.clear(); clearColliders();
 
       const parser=new DOMParser(); const xml=parser.parseFromString(hsml, 'text/xml'); const spaceXML=xml.getElementsByTagName('space')[0]; if(!spaceXML){ console.error('No <space> root'); return; }
@@ -558,20 +803,15 @@
       const scriptTags = spaceXML.getElementsByTagName('script');
       for (let i=0;i<scriptTags.length;i++){ const node=scriptTags[i]; const src=node.getAttribute('src'); const inline=node.textContent?.trim(); if(src){ fetch(src).then(r=>r.text()).then(code=>runSandbox(code)).catch(err=>console.error('Script load error',src,err)); } else if(inline){ runSandbox(inline); } }
 
-      // Aplicar transforms y alinear colliders antes del primer frame
       applyTransformsRecursively(virtualDOM);
       updateColliderAABBs();
 
-      // Reset cámara por encima del suelo
       player.position.set(0, player.eyeHeight, 6);
       const gy = getGroundHeightAt(player.position.x, player.position.z);
-      if (player.position.y - player.eyeHeight < gy) {
-        player.position.y = gy + player.eyeHeight;
-      }
+      if (player.position.y - player.eyeHeight < gy) { player.position.y = gy + player.eyeHeight; }
       player.velY=0; player.grounded=false; 
-      camera.position.copy(player.position); 
-      yaw=0; pitch=0; 
-      camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+      xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
+      if(!input.isXR){ camera.position.set(0, player.eyeHeight, 0); yaw=0; pitch=0; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); }
     }
 
     function runSandbox(code){ const fn=new Function('dimension','setUpdate','setTimeout','setInterval', code); fn(dimension, setUpdate, setTimeout, setInterval); }
@@ -601,9 +841,9 @@
     <box id="centerCube" width="1" height="1" depth="1" color="#4db6ac" x="0" y="0.5" z="0" class="spin" />
   <\/group>
   <script>
-    // Ejemplo: "usar" funciona en desktop (click/touch) y VR (select) por el core.
-    dimension.input.onUse(()=>{
-      const hit = dimension.physics.pickCenter();
+    // "Usar" unificado (desktop click/touch y VR trigger).
+    dimension.input.onUse((e)=>{
+      const hit = e?.hit || dimension.physics.pickCenter();
       if(!hit) return;
       let m=hit.object; while(m && !m.isMesh) m=m.parent; if(!m||!m.material||!m.material.color) return;
       if(!m.userData._base) m.userData._base = m.material.color.clone();
