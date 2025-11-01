@@ -430,6 +430,8 @@
       if (tag==='group' || tag==='space') { obj=new THREE.Object3D(); }
       else if (tag==='include') {
         obj = new THREE.Object3D();
+        obj.userData.kind = 'include';
+        obj.userData.includeKeys = new Set();
         const includeUrl = a.src;
         if (includeUrl) {
           try {
@@ -438,10 +440,10 @@
             const parsed = parseHSMLRootFromString(text);
             const incRoot = parsed.vnode;
             if (incRoot) {
-              (incRoot.children || []).forEach(ch => vnode.appendChild(ch));
-              for (const ch of incRoot.children) {
-                await buildSceneFromVirtual(ch, obj);
-              }
+              (incRoot.children || []).forEach(ch => { vnode.appendChild(ch); obj.userData.includeKeys.add(ch.key); });
+              for (const ch of incRoot.children) { await buildSceneFromVirtual(ch, obj); }
+              obj.userData.includeSrc = includeUrl;
+              obj.userData.includeBase = includeUrl;
               // Asegurar que los IDs del include estén indexados antes de correr scripts
               reindexVirtualDOM();
               scheduleDevToolUpdate();
@@ -510,8 +512,91 @@
       registerColliderFromAttrs(vnode, obj);
     }
 
+    // Actualiza en vivo un <include> cuando cambia su atributo src
+    async function updateIncludeFor(vnode, obj, newSrc){
+      try {
+        // limpiar contenido previo del include (virtual DOM y escena)
+        const keys = obj.userData?.includeKeys || new Set();
+        if (keys.size) {
+          for (const k of keys) {
+            removeNodeByKey(virtualDOM, k);
+            const o = nodeKeyToObject.get(k);
+            if (o && o.parent) o.parent.remove(o);
+            nodeKeyToObject.delete(k);
+          }
+          obj.userData.includeKeys = new Set();
+        }
+        // remover objetos hijos directos 3D
+        obj.children.slice().forEach(c => obj.remove(c));
+
+        if (!newSrc) {
+          obj.userData.includeSrc = undefined;
+          scheduleDevToolUpdate();
+          reindexVirtualDOM();
+          return;
+        }
+
+        // resolver URL absoluta contra base conocida
+        let abs = newSrc;
+        try {
+          if (!/^https?:\/\//i.test(newSrc)) {
+            const base = obj.userData?.includeBase || (lastHSMLSource && lastHSMLSource.type==='url' ? lastHSMLSource.value : location.href);
+            abs = new URL(newSrc, base).toString();
+          }
+        } catch(_) { /* keep as-is */ }
+
+        const res = await fetch(abs);
+        const text = await res.text();
+        const parsed = parseHSMLRootFromString(text);
+        const incRoot = parsed.vnode;
+        if (incRoot) {
+          (incRoot.children || []).forEach(ch => { vnode.children.push(ch); (obj.userData.includeKeys||=new Set()).add(ch.key); });
+          for (const ch of incRoot.children) { await buildSceneFromVirtual(ch, obj); }
+          obj.userData.includeSrc = newSrc;
+          obj.userData.includeBase = abs;
+
+          // indexar y ejecutar scripts del include
+          reindexVirtualDOM();
+          scheduleDevToolUpdate();
+          try {
+            const xml = new DOMParser().parseFromString(text, 'text/xml');
+            let scriptNodes = [];
+            const hsmlEl = xml.getElementsByTagName('hsml')[0] || null;
+            if (hsmlEl) scriptNodes = Array.from(hsmlEl.getElementsByTagName('script'));
+            else { const spaceEl = xml.getElementsByTagName('space')[0] || null; if (spaceEl) scriptNodes = Array.from(spaceEl.getElementsByTagName('script')); }
+            if (scriptNodes.length) {
+              for (const node of scriptNodes) {
+                const ssrc = node.getAttribute('src');
+                const codeAttr = node.getAttribute('code');
+                const inline = (node.textContent || '').trim();
+                if (ssrc) {
+                  const absScript = new URL(ssrc, abs).toString();
+                  fetch(absScript).then(r=>r.text()).then(code=>runSandbox(code)).catch(err=>console.error('Script load error', absScript, err));
+                } else if (codeAttr && codeAttr.trim()) { runSandbox(codeAttr); }
+                else if (inline) { runSandbox(inline); }
+              }
+            }
+          } catch(e){ console.error('Include script error', abs, e); }
+          reindexVirtualDOM();
+          scheduleDevToolUpdate();
+        } else {
+          obj.userData.includeSrc = newSrc;
+          obj.userData.includeBase = abs;
+        }
+      } catch(e){ console.error('updateIncludeFor error', e); }
+    }
+
     function applyTransformsRecursively(vnode){
       const obj=nodeKeyToObject.get(vnode.key); if(obj){ const attrs=vnode.attributes||{};
+        // Soporte de recarga dinámica para <include src="...">
+        if (vnode.tag === 'include') {
+          const desired = attrs.src !== undefined && attrs.src !== null && String(attrs.src).trim() !== '' ? String(attrs.src) : undefined;
+          const current = obj.userData ? obj.userData.includeSrc : undefined;
+          if (desired !== current && !obj.userData.includeLoading) {
+            obj.userData.includeLoading = true;
+            (async ()=>{ try { await updateIncludeFor(vnode, obj, desired); } finally { obj.userData.includeLoading = false; } })();
+          }
+        }
         if (attrs.scale!==undefined){ const s=parseFloat(attrs.scale); if(!isNaN(s)) obj.scale.set(s,s,s); }
         if (attrs.x!==undefined) obj.position.x = parseFloat(attrs.x)||0;
         if (attrs.y!==undefined) obj.position.y = parseFloat(attrs.y)||0;
