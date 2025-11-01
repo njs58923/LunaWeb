@@ -182,13 +182,17 @@
           return new THREE.Vector3(w/2, h/2, d/2);
         };
       } else if (tag==='plane'){
-        const sx=obj.scale.x, sy=obj.scale.y, sz=obj.scale.z;
-        const w=parseFloat(a.width||5)*sx, d=parseFloat(a.height||5)*sz;
-        const thick=parseFloat(a.thickness ?? 0.1)*sy;
-        return new THREE.Vector3(w/2, thick/2, d/2);
+        computeHalf = ()=>{
+          const sx=obj.scale.x, sy=obj.scale.y, sz=obj.scale.z;
+          const w=parseFloat(a.width||5)*sx, d=parseFloat(a.height||5)*sz;
+          const thick=parseFloat(a.thickness ?? 0.1)*sy;
+          return new THREE.Vector3(w/2, thick/2, d/2);
+        };
       } else if (tag==='sphere'){
-        const s=obj.scale.x; const r=parseFloat(a.radius||0.5)*s;
-        return new THREE.Vector3(r, r, r);
+        computeHalf = ()=>{
+          const s=obj.scale.x; const r=parseFloat(a.radius||0.5)*s;
+          return new THREE.Vector3(r, r, r);
+        };
       }
 
       const handle = {
@@ -243,6 +247,12 @@
         if (attrs.rx!==undefined) obj.rotation.x = parseFloat(attrs.rx)||0;
         if (attrs.ry!==undefined) obj.rotation.y = parseFloat(attrs.ry)||0;
         if (attrs.rz!==undefined) obj.rotation.z = parseFloat(attrs.rz)||0;
+        if (attrs.color!==undefined){
+          const col = new THREE.Color(attrs.color);
+          if (obj.isLight && obj.color){ obj.color.copy(col); }
+          else if (obj.isMesh && obj.material && obj.material.color){ obj.material.color.copy(col); obj.material.needsUpdate=true; }
+          else { obj.traverse(n=>{ if(n.isMesh && n.material && n.material.color){ n.material.color.copy(col); n.material.needsUpdate=true; } if(n.isLight && n.color){ n.color.copy(col); } }); }
+        }
       }
       vnode.children.forEach(ch=>applyTransformsRecursively(ch));
     }
@@ -439,8 +449,8 @@
       emit('input:use', { source, hit });
     }
 
-    canvas.addEventListener('mousedown', ()=>{ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); emitUseFromPointer('mouse'); });
-    canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); });
+    canvas.addEventListener('mousedown', ()=>{ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); emitUseFromPointer('mouse'); emitTouchFromPointer('mouse'); });
+    canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); emitTouchFromPointer('touch'); });
     document.addEventListener('pointerlockchange', ()=>{ input.pointerLocked = (document.pointerLockElement===canvas); document.getElementById('toggleFreeCameraBtn').textContent = input.pointerLocked ? 'Liberar Mouse' : 'Capturar Mouse'; });
     document.addEventListener('mousemove', e=>{ if(!input.pointerLocked) return; yaw -= e.movementX*mouseSensitivity; pitch -= e.movementY*mouseSensitivity; const maxP=Math.PI/2-0.001; if(pitch>maxP)pitch=maxP; if(pitch<-maxP)pitch=-maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', {yaw,pitch}); });
 
@@ -462,23 +472,33 @@
     }
     function updateColliderAABBs(){
       for(const c of staticColliders){
-        if (typeof c.recalcHalf === 'function') c.recalcHalf();
-        const center = c.object.getWorldPosition(new THREE.Vector3());
-        c.min.set(center.x - c.half.x, center.y - c.half.y, center.z - c.half.z);
-        c.max.set(center.x + c.half.x, center.y + c.half.y, center.z + c.half.z);
+        // Usar AABB real del objeto en mundo para respetar rotaciones/escala
+        const box = new THREE.Box3().setFromObject(c.object);
+        // Inflar en Y para planos (tienen grosor geométrico ~0)
+        if (c.vnode && String(c.vnode.tag).toLowerCase()==='plane'){
+          const thick = parseFloat(c.vnode.attributes?.thickness ?? 0.1);
+          box.min.y -= thick/2;
+          box.max.y += thick/2;
+        }
+        c.min.copy(box.min);
+        c.max.copy(box.max);
       }
     }
     function getGroundHeightAt(x,z){ let gy = -Infinity; for(const c of staticColliders){ if(x>=c.min.x && x<=c.max.x && z>=c.min.z && z<=c.max.z){ gy = Math.max(gy, c.max.y); } } return (gy===-Infinity)? 0 : gy; }
     function getCeilingHeightAt(x,z){ let cy = Infinity; for(const c of staticColliders){ if(x>=c.min.x && x<=c.max.x && z>=c.min.z && z<=c.max.z){ cy = Math.min(cy, c.min.y); } } return cy; }
     function resolveCollisionsXZ(pos, r){
       let p = pos.clone();
-      for(const c of staticColliders){
-        const min=c.min, max=c.max;
-        const closestX=Math.max(min.x, Math.min(p.x, max.x));
-        const closestZ=Math.max(min.z, Math.min(p.z, max.z));
-        const dx=p.x-closestX, dz=p.z-closestZ;
-        const d2=dx*dx+dz*dz, rr=r*r;
-        if(d2<rr){ const d=Math.sqrt(Math.max(d2,1e-6)); const nx=dx/d, nz=dz/d; const push=(r-d)+1e-3; p.x+=nx*push; p.z+=nz*push; }
+      for(let iter=0; iter<3; iter++){
+        let moved = false;
+        for(const c of staticColliders){
+          const min=c.min, max=c.max;
+          const closestX=Math.max(min.x, Math.min(p.x, max.x));
+          const closestZ=Math.max(min.z, Math.min(p.z, max.z));
+          const dx=p.x-closestX, dz=p.z-closestZ;
+          const d2=dx*dx+dz*dz, rr=r*r;
+          if(d2<rr){ const d=Math.sqrt(Math.max(d2,1e-6)); const nx=dx/d, nz=dz/d; const push=(r-d)+1e-3; p.x+=nx*push; p.z+=nz*push; moved=true; }
+        }
+        if(!moved) break;
       }
       return p;
     }
@@ -697,6 +717,38 @@
     const grip1 = renderer.xr.getControllerGrip(0); grip1.add(controllerModelFactory.createControllerModel(grip1)); xrRig.add(grip1);
     const grip2 = renderer.xr.getControllerGrip(1); grip2.add(controllerModelFactory.createControllerModel(grip2)); xrRig.add(grip2);
 
+    // ----------------- Toque (desktop y VR) -----------------
+    // Desktop: click/touch en el centro lanza 'toque' con pickCenter
+    function emitTouchFromPointer(source){
+      const hit = pickCenter();
+      if(!hit) return;
+      emit('toque', { source, object: hit.object, point: hit.point, distance: hit.distance });
+    }
+    // Los listeners de mousedown/touchstart principales disparan esto también
+
+    // VR: colisión del controlador contra mallas (esfera-pequeña contra AABB del objeto)
+    const touchingByCtrl = new Map([[xrCtrl1, new Set()], [xrCtrl2, new Set()]]);
+    function getCtrlTip(ctrl){ const v=new THREE.Vector3(); v.setFromMatrixPosition(ctrl.matrixWorld); return v; }
+    function forEachMesh(callback){ scene.traverse(obj=>{ if(obj.isMesh){ callback(obj); } }); }
+    function checkVRTouches(){
+      if(!input.isXR) return;
+      const controllers=[xrCtrl1,xrCtrl2];
+      const radius=0.035;
+      for(const ctrl of controllers){ if(!ctrl) continue; const tip=getCtrlTip(ctrl); const touching=touchingByCtrl.get(ctrl) || new Set(); const current=new Set();
+        forEachMesh(mesh=>{
+          const box = new THREE.Box3().setFromObject(mesh);
+          const dist = box.distanceToPoint(tip);
+          if(dist <= radius){
+            current.add(mesh.uuid);
+            if(!touching.has(mesh.uuid)){
+              emit('toque', { source:'vr', object: mesh, point: tip.clone(), controller: ctrl });
+            }
+          }
+        });
+        touchingByCtrl.set(ctrl, current);
+      }
+    }
+
     renderer.xr.addEventListener('sessionstart', ()=>{
       input.isXR = true;
       player = new VRPlayer(env);
@@ -727,6 +779,8 @@
       updateColliderAABBs();
 
       if(controllerState.enabled && controllerState.update) controllerState.update(dt);
+      // detectar 'toque' en VR por proximidad del controlador
+      checkVRTouches();
 
       updateStats(now); 
       maybeUpdateDevTool(); 
@@ -789,6 +843,8 @@
     function setUpdate(fn){ userUpdateFunctions.add(fn); }
     function serializeHSML(vnode){ if(!vnode) return ''; const attrs=Object.entries(vnode.attributes).map(([k,v])=>`${k}="${String(v)}"`).join(' '); const open=attrs?`<${vnode.tag} ${attrs}>`:`<${vnode.tag}>`; if(!vnode.children||vnode.children.length===0) return `${open}</${vnode.tag}>`; return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`; }
 
+    // (Sin lógica de demo aquí; la demo vive dentro de DEFAULT_HSML)
+
     // ----------------- Carga HSML -----------------
     async function loadHSML(){ const inputEl=document.getElementById('urlInput'); const input=inputEl?inputEl.value.trim():''; let hsml=''; const hashLevel=new URLSearchParams(location.hash.replace('#','')).get('level'); if(!input && hashLevel){ try{ const res=await fetch(hashLevel); hsml=await res.text(); }catch(e){ console.warn('No se pudo cargar hash level, usando demo'); hsml=DEFAULT_HSML; } } else if (input && input.startsWith('<')){ hsml=input; } else if (input){ try{ const res=await fetch(input); hsml=await res.text(); }catch(e){ console.warn('No se pudo cargar URL, usando demo'); hsml=DEFAULT_HSML; } } else { hsml=DEFAULT_HSML; } importHSMLFromString(hsml); }
 
@@ -835,21 +891,21 @@
   <light type="ambient" intensity="0.7" />
   <light type="directional" intensity="1.2" />
   <group id="world">
-    <plane id="floor" width="200" height="200" color="#2a2a2a" y="0" collider="true" thickness="0.1" />
+    <plane id="floor" width="200" height="200" color="#2a2a2a" y="0" thickness="0.1" />
     <box id="wall1" width="8" height="2" depth="0.6" color="#546e7a" x="-4" y="1" z="-6" collider="true" />
     <box id="wall2" width="8" height="2" depth="0.6" color="#546e7a" x=" 4" y="1" z="-6" collider="true" />
     <box id="centerCube" width="1" height="1" depth="1" color="#4db6ac" x="0" y="0.5" z="0" class="spin" />
   <\/group>
   <script>
-    // "Usar" unificado (desktop click/touch y VR trigger).
-    dimension.input.onUse((e)=>{
-      const hit = e?.hit || dimension.physics.pickCenter();
-      if(!hit) return;
-      let m=hit.object; while(m && !m.isMesh) m=m.parent; if(!m||!m.material||!m.material.color) return;
-      if(!m.userData._base) m.userData._base = m.material.color.clone();
-      const alt = m.userData._alt = !m.userData._alt;
-      if(alt){ const h={h:0,s:0,l:0}; m.material.color.getHSL(h); h.h=(h.h+0.33)%1; h.s=Math.min(1,h.s+0.2); m.material.color.setHSL(h.h,h.s,Math.max(0.35,h.l)); }
-      else m.material.color.copy(m.userData._base);
+    // Demo: escuchar 'toque' y alternar color del #centerCube
+    function isDescendantOf(obj, ancestor){ let o=obj; while(o){ if(o===ancestor) return true; o=o.parent; } return false; }
+    let _centerCubeToggle=false;
+    dimension.on('toque', (e)=>{
+      const cubeObj = dimension.getObjectFor('centerCube'); if(!cubeObj) return;
+      let m=e?.object; if(!m) return; if(!isDescendantOf(m, cubeObj)) return;
+      const color = _centerCubeToggle ? '#4db6ac' : '#ff7043';
+      const nodes = dimension.find('#centerCube'); if(nodes && nodes.length){ nodes[0].setAttribute('color', color); }
+      _centerCubeToggle=!_centerCubeToggle;
     });
   <\/script>
 <\/space>`;
