@@ -329,7 +329,7 @@
       update(dt){
         const { THREE, camera, xrRig, input, helpers } = this.env;
         const forward = new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
-        const right   = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), forward).normalize();
+        const right   = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize();
         let move = new THREE.Vector3();
         const base = this.speed * ( (input.keys['ShiftLeft']||input.keys['ShiftRight']) ? this.sprintMult : 1 );
         if(input.keys['KeyW']) move.add(forward);
@@ -370,8 +370,8 @@
 
         const camXR = renderer.xr.getCamera(camera);
         const Y_UP = new THREE.Vector3(0,1,0);
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camXR.quaternion); dir.y=0; dir.normalize();
-        const right = new THREE.Vector3().crossVectors(Y_UP, dir).normalize();
+        const dir = new THREE.Vector3(0,0,-1).transformDirection(camXR.matrixWorld); dir.y=0; dir.normalize();
+        const right = new THREE.Vector3().crossVectors(dir, Y_UP).normalize();
 
         if(!axisSign.calibrated && (Math.abs(lx)>0.6 || Math.abs(ly)>0.6)){
           const testF = dir.clone().multiplyScalar(-ly);
@@ -582,8 +582,8 @@
 
       // Dirección del HMD (cabeza-relativo)
       const camXR = renderer.xr.getCamera(camera);
-      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camXR.quaternion); dir.y=0; dir.normalize();
-      const right = new THREE.Vector3().crossVectors(Y_UP, dir).normalize();
+      const dir = new THREE.Vector3(0,0,-1).transformDirection(camXR.matrixWorld); dir.y=0; dir.normalize();
+      const right = new THREE.Vector3().crossVectors(dir, Y_UP).normalize();
 
       // Autocalibración de signo (una vez)
       if(!axisSign.calibrated && (Math.abs(lx)>0.6 || Math.abs(ly)>0.6)){
@@ -645,7 +645,7 @@
       if(input.isXR){
         const xrCam = renderer.xr.getCamera(camera);
         raycaster.ray.origin.setFromMatrixPosition(xrCam.matrixWorld);
-        raycaster.ray.direction.set(0,0,-1).applyQuaternion(xrCam.quaternion);
+        raycaster.ray.direction.set(0,0,-1).transformDirection(xrCam.matrixWorld);
         const hits=raycaster.intersectObjects(scene.children,true);
         if(!hits||!hits.length) return null; const h=hits[0]; return { object:h.object, point:h.point, distance:h.distance };
       } else {
