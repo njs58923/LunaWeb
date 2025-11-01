@@ -1045,28 +1045,48 @@
 
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 2000);
 
-    // PATCH: giro seguro alrededor del visor (head-locked yaw)
+    // PATCH: giro head-locked (pivot = cabeza) con matrices actualizadas
     const _tmpHeadBefore = new THREE.Vector3();
-    const _tmpHeadAfter = new THREE.Vector3();
+    const _tmpHeadAfter  = new THREE.Vector3();
 
-    function yawRigAroundViewer(deltaYaw) {
-      // Sin sesión XR: rotación simple del rig
-      if (!renderer.xr.isPresenting) {
-        xrRig.rotateY(deltaYaw);
-        return;
-      }
+    let _skipSyncThisFrame = false;
 
-      // Con XR: mantener la cabeza en su lugar mientras gira el rig
+    const _p = new THREE.Vector3();
+    function rotateRigAroundHead(deltaYaw) {
+      if (!Number.isFinite(deltaYaw) || Math.abs(deltaYaw) < 1e-6) return;
+
+      // Posición mundial de la cabeza
       const xrCam = renderer.xr.getCamera(camera);
-      _tmpHeadBefore.setFromMatrixPosition(xrCam.matrixWorld);
+      const headWorld = new THREE.Vector3();
+      xrCam.getWorldPosition(headWorld);
 
-      // Rotar el rig
-      xrRig.rotateY(deltaYaw);
+      // Vector desde cabeza → rig (en mundo)
+      const rel = xrRig.position.clone().sub(headWorld);
 
-      // Medir el desplazamiento que causó la rotación y compensar
-      _tmpHeadAfter.setFromMatrixPosition(xrCam.matrixWorld);
-      xrRig.position.add(_tmpHeadBefore.sub(_tmpHeadAfter));
+      // Rotación en Y (mundo)
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), deltaYaw);
+      rel.applyQuaternion(q);
+
+      // Nueva posición del rig para mantener la cabeza fija en el mundo
+      xrRig.position.copy(headWorld).add(rel);
+
+      // Aplica la rotación al rig (solo orientación)
+      xrRig.quaternion.premultiply(q); // equivalente a rotar alrededor de Y mundial
+
+      // const SNAP_DEG = THREE.MathUtils.degToRad(30);
+      // const SNAP_THRESH = 0.8;
+      // this._snapCooldown = (this._snapCooldown ?? 0) - dt;
+
+      // if (Math.abs(lxTurn) > SNAP_THRESH && this._snapCooldown <= 0) {
+      //   rotateRigAroundHead(lxTurn > 0 ? -SNAP_DEG : SNAP_DEG);
+      //   this._snapCooldown = 0.25; // 250 ms entre snaps
+      // }
+
     }
+
+
+
+
 
     // RIG del usuario
     const xrRig = new THREE.Group();
@@ -1128,6 +1148,13 @@
     // ----------------- Controlador de personaje (abstraído) -----------------
     const input = { keys: {}, pointerLocked: false, isXR: false };
 
+    function getHeadWorld() {
+      const xrCam = renderer.xr.getCamera(camera);
+      const p = new THREE.Vector3();
+      xrCam.getWorldPosition(p);
+      return p;
+    }
+
     class PlayerBase {
       constructor(env, opts = {}) {
         this.env = env;
@@ -1157,23 +1184,26 @@
         }
         return nextY;
       }
+            
       syncRig() {
-        const { xrRig, camera, input, renderer, THREE } = this.env;
+        const { xrRig, camera, input } = this.env;
+
         if (input.isXR) {
-          const camXR = renderer.xr.getCamera(camera);
-          const headWorld = new THREE.Vector3().setFromMatrixPosition(camXR.matrixWorld);
-          const headLocal = headWorld.clone();
-          xrRig.worldToLocal(headLocal);
-          xrRig.position.set(
-            this.position.x - headLocal.x,
-            this.position.y - headLocal.y,
-            this.position.z - headLocal.z
-          );
+          // En VR, solo XZ. Nada de mirar la cabeza aquí.
+          xrRig.position.x = this.position.x;
+          xrRig.position.z = this.position.z;
+          // No tocar Y (local-floor se encarga de la altura del HMD)
+          xrRig.updateMatrixWorld(true);
         } else {
+          // Desktop como siempre
           xrRig.position.set(this.position.x, this.position.y - this.eyeHeight, this.position.z);
           camera.position.set(0, this.eyeHeight, 0);
         }
       }
+
+
+
+
       update(_dt) { /* abstract */ }
     }
 
@@ -1211,71 +1241,112 @@
       }
     }
 
-    class VRPlayer extends PlayerBase {
-      update(dt) {
-        const { THREE, renderer, camera, input, helpers, xrRig } = this.env;
-        const session = renderer.xr.getSession();
-        if (!session) { return; }
+class VRPlayer extends PlayerBase {
+  constructor(env, opts = {}) {
+    super(env, opts);
+    this._prevHeadWorld = null; // para futuros usos si querés delta físico
+  }
 
-        if (!xrSources.left && !xrSources.right) bindXRInputSources();
-        const leftGp = xrSources.left?.gamepad || null;
-        const rightGp = xrSources.right?.gamepad || null;
+  update(dt) {
+    const { THREE, renderer, camera, input, helpers, xrRig } = this.env;
+    const session = renderer.xr.getSession();
+    if (!session) return;
 
-        let lx = getAxisSafe(leftGp, 2, 0);
-        let ly = getAxisSafe(leftGp, 3, 1);
-        let rx = getAxisSafe(rightGp, 2, 0);
+    // Asegurar input sources XR
+    if (!xrSources.left && !xrSources.right) bindXRInputSources();
+    const leftGp  = xrSources.left?.gamepad  || null;
+    const rightGp = xrSources.right?.gamepad || null;
 
-        const dead = 0.1, turnDead = 0.25;
-        if (Math.abs(lx) < dead) lx = 0;
-        if (Math.abs(ly) < dead) ly = 0;
-        if (Math.abs(rx) < turnDead) rx = 0;
+    // ===== Lectura de sticks =====
+    let lx = getAxisSafe(leftGp,  2, 0); // strafe
+    let ly = getAxisSafe(leftGp,  3, 1); // forward/back
+    let rx = getAxisSafe(rightGp, 2, 0); // yaw
 
-        // Usar orientación del rig (yaw del jugador), no la cabeza, para locomoción
-        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(xrRig.quaternion);
-        dir.y = 0; dir.normalize();
-        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(xrRig.quaternion);
-        right.y = 0; right.normalize();
+    // Zonas muertas
+    const DEAD_MOVE = 0.10;
+    const DEAD_TURN = 0.25;
+    if (Math.abs(lx) < DEAD_MOVE) lx = 0;
+    if (Math.abs(ly) < DEAD_MOVE) ly = 0;
+    if (Math.abs(rx) < DEAD_TURN) rx = 0;
 
-        if (!axisSign.calibrated && (Math.abs(lx) > 0.6 || Math.abs(ly) > 0.6)) {
-          const testF = dir.clone().multiplyScalar(-ly);
-          axisSign.y = (testF.dot(dir) >= 0) ? 1 : -1; // <--- corregido (sin basura)
-          const testS = right.clone().multiplyScalar(lx);
-          axisSign.x = (testS.dot(right) >= 0) ? 1 : -1;
-          axisSign.calibrated = true;
-        }
+    // ===== Base de orientación: Yaw de la cabeza (plano XZ) =====
+    const xrCam = renderer.xr.getCamera(camera);
 
-        const base = this.speed;
-        let move = new THREE.Vector3();
-        move.addScaledVector(dir, -ly);
-        move.addScaledVector(right, lx);
+    const headQuat = new THREE.Quaternion();
+    xrCam.getWorldQuaternion(headQuat);
 
-        if (move.lengthSq() > 1e-6) {
-          move.normalize().multiplyScalar(base * dt);
-          let desired = this.position.clone();
-          const steps = Math.max(1, Math.ceil(move.length() / (this.radius * 0.5)));
-          const stepVec = move.clone().multiplyScalar(1 / steps);
-          for (let i = 0; i < steps; i++) {
-            desired.add(stepVec);
-            desired = helpers.resolveCollisionsXZ(desired, this.radius);
-          }
-          const nextY = this.applyVerticalPhysics(dt, desired.x, desired.z);
-          this.position.set(desired.x, nextY, desired.z);
-        } else {
-          const groundY = helpers.getGroundHeightAt(this.position.x, this.position.z);
-          this.velY -= this.gravity * dt;
-          let nextY = this.position.y + this.velY * dt;
-          if (nextY - this.eyeHeight <= groundY) { nextY = groundY + this.eyeHeight; this.velY = 0; this.grounded = true; } else this.grounded = false;
-          this.position.y = nextY;
-        }
+    const headEuler = new THREE.Euler().setFromQuaternion(headQuat, 'YXZ');
+    headEuler.x = 0; // solo yaw
+    headEuler.z = 0;
+    headQuat.setFromEuler(headEuler);
 
-        if (rx !== 0) {
-          const turnSpeed = 1.6;
-          yawRigAroundViewer(-rx * turnSpeed * dt);
-        }
+    const dir   = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat).setY(0).normalize(); // adelante cabeza
+    const right = new THREE.Vector3(1, 0,  0).applyQuaternion(headQuat).setY(0).normalize(); // derecha cabeza
 
-        this.syncRig();
-      }
+    // ===== Autocalibración de signos (una vez) =====
+    if (!axisSign.calibrated && (Math.abs(lx) > 0.6 || Math.abs(ly) > 0.6)) {
+      const tF = dir.clone().multiplyScalar(-ly);
+      axisSign.y = (tF.dot(dir) >= 0) ? 1 : -1;
+
+      const tS = right.clone().multiplyScalar(lx);
+      axisSign.x = (tS.dot(right) >= 0) ? 1 : -1;
+
+      axisSign.calibrated = true;
     }
+
+    lx *= axisSign.x;
+    ly *= axisSign.y;
+
+    // ===== Posición real del HMD (no mover rig por físico) =====
+    const headWorld = getHeadWorld();
+    if (!this._prevHeadWorld) this._prevHeadWorld = headWorld.clone();
+
+    // ===== Desplazamiento por stick (artificial) =====
+    const baseSpeed = this.speed;
+    const stickVec = new THREE.Vector3()
+      .addScaledVector(dir,   ly * baseSpeed * dt)
+      .addScaledVector(right,  -lx * baseSpeed * dt);
+
+    // ===== Colisiones: "el collider sigue a la cabeza" =====
+    // P0: solo física (sin stick) — dónde estaría el collider bajo la cabeza
+    const P0 = helpers.resolveCollisionsXZ(
+      new THREE.Vector3(headWorld.x, this.position.y, headWorld.z),
+      this.radius
+    );
+
+    // P1: física + stick — objetivo si no hubiera choque
+    const P1 = helpers.resolveCollisionsXZ(
+      new THREE.Vector3(headWorld.x + stickVec.x, this.position.y, headWorld.z + stickVec.z),
+      this.radius
+    );
+
+    // El cuerpo/collider va a P1 (con colisión)
+    let desired = P1.clone();
+
+    // ===== Físicas verticales =====
+    const nextY = this.applyVerticalPhysics(dt, desired.x, desired.z);
+    this.position.set(desired.x, nextY, desired.z);
+
+    // ===== El rig SOLO avanza por stick permitido (no por movimiento físico) =====
+    const rigDeltaX = P1.x - P0.x;
+    const rigDeltaZ = P1.z - P0.z;
+    if (rigDeltaX || rigDeltaZ) {
+      xrRig.position.x += rigDeltaX;
+      xrRig.position.z += rigDeltaZ;
+      xrRig.updateMatrixWorld(true);
+    }
+
+    // ===== Giro suave con stick derecho (pivot: cabeza) =====
+    if (rx !== 0) {
+      const turnSpeed = 1.6; // rad/s aprox
+      const delta = -rx * turnSpeed * dt;
+      rotateRigAroundHead(delta);
+    }
+
+    this._prevHeadWorld.copy(headWorld);
+  }
+}
+
 
     const env = {
       THREE,
@@ -1490,13 +1561,25 @@
     renderer.xr.addEventListener('sessionstart', () => {
       input.isXR = true;
       axisSign.x = 1; axisSign.y = 1; axisSign.calibrated = false;
+
       player = new VRPlayer(env);
+      player._prevHeadWorld = getHeadWorld().clone();
       controllerState.update = (dt) => player.update(dt);
       bindXRInputSources();
-      camera.position.set(0, 0, 0);
-      player.syncRig();
+
+      // IMPORTANTÍSIMO: agregar la cámara XR (wrapper) al rig
+      const xrCam = renderer.xr.getCamera(camera);
+      if (xrCam.parent !== xrRig) xrRig.add(xrCam);
+
+      // No tocar camera.position / quaternion en XR
       xrRig.rotation.set(0, 0, 0);
+
+      // Una sola vez, sin compensaciones con la cabeza
+      player.syncRig();
     });
+
+
+
     renderer.xr.addEventListener('sessionend', () => {
       input.isXR = false;
       axisSign.x = 1; axisSign.y = 1; axisSign.calibrated = false;
@@ -1505,6 +1588,7 @@
       xrRig.rotation.set(0, 0, 0);
       camera.position.set(0, player.eyeHeight, 0);
     });
+
 
     // ----------------- Loop principal -----------------
     renderer.setAnimationLoop(animate);
