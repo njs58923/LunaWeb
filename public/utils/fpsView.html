@@ -1,0 +1,24 @@
+<hsml>
+  <space>
+    <group class="spin">
+      <text id="fps" text="FPS: --"
+            x="0" y="1.3" z="0"
+            fontsize="48" maxwidth="512"
+            unitsperpx="0.002" bg="rgba(0,0,0,0.35)"/>
+    </group>
+  </space>
+
+  <script>
+    // === FPS (sin depender del panel ni variables globales) ===
+    // Promediamos en ventanas de 0.25s para reducir redibujos del canvas
+    let acc = 0, frames = 0;
+    dimension.loop.onUpdate((dt) => {
+      acc += dt; frames++;
+      if (acc >= 0.25) {
+        const fps = (frames / acc).toFixed(1);
+        dimension.setAttr('fps', 'text', `FPS: ${fps}`);
+        acc = 0; frames = 0;
+      }
+    });
+  </script>
+</hsml>
