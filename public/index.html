@@ -838,19 +838,6 @@
       }
     }
 
-    // Helper: obtener forward/right del visor en XR (nivel suelo)
-    function getXRHeadBasis() {
-      const xrCam = renderer.xr.getCamera(camera);
-      const baseCam = (xrCam && xrCam.isArrayCamera && xrCam.cameras && xrCam.cameras.length)
-        ? xrCam.cameras[0]
-        : xrCam;
-      const fwd = new THREE.Vector3();
-      baseCam.getWorldDirection(fwd);
-      fwd.y = 0; fwd.normalize();
-      const right = fwd.clone().applyAxisAngle(new THREE.Vector3(0,1,0), Math.PI/2);
-      return { fwd, right };
-    }
-
     class VRPlayer extends PlayerBase {
       update(dt){
         const { THREE, renderer, camera, input, helpers, xrRig } = this.env;
@@ -870,13 +857,21 @@
         if(Math.abs(ly)<dead) ly=0;
         if(Math.abs(rx)<turnDead) rx=0;
 
+        // === INVERTIR X: Quest usa -1 para derecha, +1 para izquierda ===
+        
+
         // Usar orientación del rig (yaw del jugador), no la cabeza, para locomoción
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(xrRig.quaternion); dir.y=0; dir.normalize();
-        const right = new THREE.Vector3(1,0,0).applyQuaternion(xrRig.quaternion); right.y=0; right.normalize();
+        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(xrRig.quaternion);
+        dir.y = 0;
+        dir.normalize();
+
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(xrRig.quaternion);
+        right.y = 0;
+        right.normalize();
 
         if(!axisSign.calibrated && (Math.abs(lx)>0.6 || Math.abs(ly)>0.6)){
           const testF = dir.clone().multiplyScalar(-ly);
-          axisSign.y = (testF.dot(dir) >= 0) ? 1 : -1;
+          axisSign.y = (testF.dot(dir) >= 0) ? 1 : -1;dddddd
           const testS = right.clone().multiplyScalar(lx);
           axisSign.x = (testS.dot(right) >= 0) ? 1 : -1;
           axisSign.calibrated = true;
@@ -884,8 +879,8 @@
 
         const base = this.speed;
         let move = new THREE.Vector3();
-        move.addScaledVector(dir,   axisSign.y * (-ly));
-        move.addScaledVector(right, axisSign.x * ( lx));
+        move.addScaledVector(dir, -ly);
+        move.addScaledVector(right, lx);  
 
         if(move.lengthSq()>1e-6){
           move.normalize().multiplyScalar(base*dt);
