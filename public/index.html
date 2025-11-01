@@ -966,16 +966,14 @@ const DEFAULT_HSML = `
     <box id="centerCube" width="1" height="1" depth="1" color="#4db6ac" x="0" y="0.5" z="0" class="spin" />
   </group>
   <script>
-    function isDescendantOf(obj, ancestor){ let o=obj; while(o){ if(o===ancestor) return true; o=o.parent; } return false; }
+    const cubeNode = dimension.get('centerCube');
     let _centerCubeToggle=false;
-    document.addEventListener('toque', (ev)=>{
-      const e = ev.detail || {};
-      const cubeObj = dimension.getObjectFor('centerCube'); if(!cubeObj) return;
-      let m=e?.object; if(!m) return; if(!isDescendantOf(m, cubeObj)) return;
+    cubeNode.addEventListener('toque', ({target})=>{
+      if(!target) return;
       const color = _centerCubeToggle ? '#4db6ac' : '#ff7043';
-      const cubeNode = dimension.get('centerCube'); if(cubeNode) cubeNode.setAttribute('color', color);
+      target.setAttribute('color', color);
       _centerCubeToggle=!_centerCubeToggle;
-    }); 
+    });
   <\/script>
 </space>`;
 
