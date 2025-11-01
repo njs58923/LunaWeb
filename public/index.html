@@ -754,9 +754,22 @@
       }
     }
 
+    // Helper: obtener forward/right del visor en XR (nivel suelo)
+    function getXRHeadBasis() {
+      const xrCam = renderer.xr.getCamera(camera);
+      const baseCam = (xrCam && xrCam.isArrayCamera && xrCam.cameras && xrCam.cameras.length)
+        ? xrCam.cameras[0]
+        : xrCam;
+      const fwd = new THREE.Vector3();
+      baseCam.getWorldDirection(fwd);
+      fwd.y = 0; fwd.normalize();
+      const right = fwd.clone().applyAxisAngle(new THREE.Vector3(0,1,0), Math.PI/2);
+      return { fwd, right };
+    }
+
     class VRPlayer extends PlayerBase {
       update(dt){
-        const { THREE, renderer, camera, input, helpers } = this.env;
+        const { THREE, renderer, camera, input, helpers, xrRig } = this.env;
         const session = renderer.xr.getSession();
         if(!session){ return; }
 
@@ -773,10 +786,9 @@
         if(Math.abs(ly)<dead) ly=0;
         if(Math.abs(rx)<turnDead) rx=0;
 
-        const camXR = renderer.xr.getCamera(camera);
-        const Y_UP = new THREE.Vector3(0,1,0);
-        const dir = new THREE.Vector3(0,0,-1).transformDirection(camXR.matrixWorld); dir.y=0; dir.normalize();
-        const right = new THREE.Vector3().crossVectors(dir, Y_UP).normalize();
+        // Usar orientación del rig (yaw del jugador), no la cabeza, para locomoción
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(xrRig.quaternion); dir.y=0; dir.normalize();
+        const right = new THREE.Vector3(1,0,0).applyQuaternion(xrRig.quaternion); right.y=0; right.normalize();
 
         if(!axisSign.calibrated && (Math.abs(lx)>0.6 || Math.abs(ly)>0.6)){
           const testF = dir.clone().multiplyScalar(-ly);
@@ -854,7 +866,7 @@
     try { canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }, { passive: true }); }
     catch(_) { canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }); }
     document.addEventListener('pointerlockchange', ()=>{ input.pointerLocked = (document.pointerLockElement===canvas); document.getElementById('toggleFreeCameraBtn').textContent = input.pointerLocked ? 'Liberar Mouse' : 'Capturar Mouse'; });
-    document.addEventListener('mousemove', e=>{ if(!input.pointerLocked) return; yaw -= e.movementX*mouseSensitivity; pitch -= e.movementY*mouseSensitivity; const maxP=Math.PI/2-0.001; if(pitch>maxP)pitch=maxP; if(pitch<-maxP)pitch=-maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', {yaw,pitch}); });
+    document.addEventListener('mousemove', e=>{ if(input.isXR) return; if(!input.pointerLocked) return; yaw -= e.movementX*mouseSensitivity; pitch -= e.movementY*mouseSensitivity; const maxP=Math.PI/2-0.001; if(pitch>maxP)pitch=maxP; if(pitch<-maxP)pitch=-maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', {yaw,pitch}); });
 
     // Físicas/colliders
     const staticColliders = [];
@@ -1017,9 +1029,10 @@
       if(Math.abs(rx)<turnDead) rx=0;
 
       // Dirección del HMD (cabeza-relativo)
-      const camXR = renderer.xr.getCamera(camera);
-      const dir = new THREE.Vector3(0,0,-1).transformDirection(camXR.matrixWorld); dir.y=0; dir.normalize();
-      const right = new THREE.Vector3().crossVectors(dir, Y_UP).normalize();
+      const xrCam = renderer.xr.getCamera(camera);
+      const baseCam = (xrCam && xrCam.isArrayCamera && xrCam.cameras && xrCam.cameras.length) ? xrCam.cameras[0] : xrCam;
+      const dir = new THREE.Vector3(); baseCam.getWorldDirection(dir); dir.y=0; dir.normalize();
+      const right = dir.clone().applyAxisAngle(new THREE.Vector3(0,1,0), Math.PI/2);
 
       // Autocalibración de signo (una vez)
       if(!axisSign.calibrated && (Math.abs(lx)>0.6 || Math.abs(ly)>0.6)){
@@ -1180,6 +1193,7 @@
 
     renderer.xr.addEventListener('sessionstart', ()=>{
       input.isXR = true;
+      axisSign.x = 1; axisSign.y = 1; axisSign.calibrated = false;
       player = new VRPlayer(env);
       controllerState.update = (dt)=>player.update(dt);
       bindXRInputSources();
@@ -1189,6 +1203,7 @@
     });
     renderer.xr.addEventListener('sessionend',   ()=>{
       input.isXR = false;
+      axisSign.x = 1; axisSign.y = 1; axisSign.calibrated = false;
       player = new DesktopPlayer(env);
       controllerState.update = (dt)=>player.update(dt);
       xrRig.rotation.set(0,0,0);
