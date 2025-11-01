@@ -1,8 +1,10 @@
-<space>
-  <light type="ambient" intensity="0.65"/>
-  <light type="directional" intensity="1.2"/>
+<hsml>
+  <head>
+    <light type="ambient" intensity="0.65"/>
+    <light type="directional" intensity="1.2"/>
+  </head>
 
-  <group id="world">
+  <space id="world">
     <plane id="floor" width="220" height="220" color="#2a2a2a" y="0"/>
     <!-- Muros base (solo geometría). Las colisiones las agrega el script. -->
     <box id="wallN" width="40" height="2.5" depth="0.8" color="#455a64" x="0"   y="1.25" z="-20"/>
@@ -21,13 +23,14 @@
     <box id="door_red"   width="2" height="2.2" depth="0.3" color="#78909c" x="-6" y="0" z="-16"/>
     <box id="door_green" width="2" height="2.2" depth="0.3" color="#78909c" x=" 6" y="0" z="-16"/>
     <box id="door_blue"  width="2" height="2.2" depth="0.3" color="#78909c" x=" 0" y="0" z="-18"/>
-  </group>
+  </space>
 
   <script>
   (function(){
     // ===== Helpers
     const get = (id) => dimension.find('#'+id)[0];
     const obj = (idOrNode) => dimension.getObjectFor(idOrNode);
+    const damp = (a,b,lambda,dt)=> a + (b - a) * (1 - Math.exp(-lambda * dt));
 
     // ===== Colliders estáticos (muros/bloques/puertas cerradas)
     const colliders = [];
@@ -52,12 +55,12 @@
       const o = obj(get(d.id)); o.userData.role='door'; o.userData.req=d.k; o.userData.state='closed';
     });
 
-    // ===== Interacción: “E” o click mirando al objeto (raycast central)
+    // ===== Interacción: “E” o usar (click/trigger) mirando al objeto (raycast central)
     dimension.on('key:down', (e)=>{ if(e.code==='KeyE') tryUse(); });
-    dimension.on('input:click', ()=> tryUse());
+    dimension.input.onUse((e)=> tryUse(e));
 
-    function tryUse(){
-      const hit = dimension.physics.pickCenter();
+    function tryUse(e){
+      const hit = e?.hit || dimension.physics.pickCenter();
       if(!hit) return;
       let m=hit.object; while(m && !m.userData) m = m.parent;
       if(!m) return;
@@ -94,7 +97,7 @@
       if(idx>=0) colliders.splice(idx,1);
       // animar levantando en Y
       const stop = dimension.loop.onUpdate((dt)=>{
-        door.position.y = THREE.MathUtils.damp(door.position.y, openY, speed, dt);
+        door.position.y = damp(door.position.y, openY, speed, dt);
         if (Math.abs(door.position.y - openY) < 0.01){ door.userData.state='open'; stop(); }
       });
       dimension.audio.play('https://cdn.jsdelivr.net/gh/naptha/tinyfilehost@master/sfx/door1.mp3');
@@ -102,22 +105,26 @@
 
     // ===== Activar colisiones para el jugador (opcional)
     // Reemplazamos el update del controlador por uno que clampa contra colliders.
-    const fps = (dt)=>{
+    // ===== Control simple por cámara (opcional; el motor tiene uno por defecto)
+    // Mantengo un controlador suave basado en yaw actual.
+    // Nota: usamos pick/resolve del motor; sin dependencia a THREE en el sandbox.
+    const forwardVec = (yaw)=>({x: Math.sin(yaw), z: Math.cos(yaw)});
+    const rightVec   = (yaw)=>({x: Math.cos(yaw), z:-Math.sin(yaw)});
+    const speedWalk = 2.0/60, speedRun = 3.2/60; // unidades/frame aprox.
+    dimension.controller.set((dt)=>{
       const { yaw } = dimension.camera.getYawPitch();
-      const forward = new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
-      const right   = new THREE.Vector3(1,0,0) .applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
+      const f = forwardVec(yaw), r = rightVec(yaw);
       const pos = dimension.camera.getPosition();
-      const speed = (dimension.input.isDown('ShiftLeft')||dimension.input.isDown('ShiftRight')) ? 0.24 : 0.12;
-      let desired = pos.clone();
-      if(dimension.input.isDown('KeyW')) desired.addScaledVector(forward, speed);
-      if(dimension.input.isDown('KeyS')) desired.addScaledVector(forward,-speed);
-      if(dimension.input.isDown('KeyA')) desired.addScaledVector(right,  -speed);
-      if(dimension.input.isDown('KeyD')) desired.addScaledVector(right,   speed);
-      desired.y = 1.7;
-      desired   = dimension.physics.resolvePlayerXZ(desired, 0.4);
-      dimension.camera.teleport(desired.x, desired.y, desired.z);
-    };
-    dimension.controller.set(fps);
+      const spd = (dimension.input.isDown('ShiftLeft')||dimension.input.isDown('ShiftRight')) ? speedRun : speedWalk;
+      let dx=0, dz=0;
+      if(dimension.input.isDown('KeyW')){ dx += f.x*spd; dz += f.z*spd; }
+      if(dimension.input.isDown('KeyS')){ dx -= f.x*spd; dz -= f.z*spd; }
+      if(dimension.input.isDown('KeyA')){ dx -= r.x*spd; dz -= r.z*spd; }
+      if(dimension.input.isDown('KeyD')){ dx += r.x*spd; dz += r.z*spd; }
+      let desired = { x: pos.x+dx, y: 1.7, z: pos.z+dz };
+      const resolved = dimension.physics.resolvePlayerXZ(new (function(v){ this.x=v.x; this.y=v.y; this.z=v.z; this.clone=()=>({x:this.x,y:this.y,z:this.z}); }) (desired), 0.4);
+      dimension.camera.teleport(resolved.x, desired.y, resolved.z);
+    });
   })();
   </script>
-</space>
+</hsml>

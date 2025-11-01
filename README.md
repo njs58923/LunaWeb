@@ -7,6 +7,9 @@ Renderizador 3D con Three.js y un mini-DOM virtual (HSML) para describir escenas
 - Requisitos
 - Arranque rápido
 - Conceptos HSML
+- Raíz hsml y include
+- UI básica (text/html/video)
+- Navegación sandbox
 - Atributos comunes
 - Scripts en HSML
 - API `dimension`
@@ -49,8 +52,11 @@ HSML es un XML ligero para describir el mundo 3D:
 - `group`: agrupador lógico
 - `model`: carga GLTF (`src`)
 - `box`, `sphere`, `plane`: primitivas
+- `text`, `html`: texto renderizado en plano (canvas -> textura)
+- `video`: plano con VideoTexture (src/autoplay/loop/muted)
 - `light`: `type=ambient|directional|point|hemisphere`
 - `audio`: utilidades de audio 3D (vía API)
+- `include`: inserta otro HSML dentro del espacio, con transform propio
 
 Ejemplo mínimo:
 
@@ -77,6 +83,9 @@ Ejemplo mínimo:
   - box: `width, height, depth`
   - sphere: `radius`
   - plane: `width, height, thickness`
+- UI:
+  - text/html: `text` (o `html`), `color`, `font`, `fontsize`, `maxwidth`, `lineheight`, `bg`, `width`, `height`, `unitsperpx`
+  - video: `src`, `autoplay`, `loop`, `muted`, `width`, `height`
 - `collider="true|box|1|yes|on"`: agrega collider AABB estático
 
 Nota: Cambiar `color` en HSML actualiza el material en vivo.
@@ -88,6 +97,69 @@ Nota: Cambiar `color` en HSML actualiza el material en vivo.
 - Atributo: `<script code="...JS..." />`
 
 Los scripts corren tras construir la escena y exponen la API `dimension`. Si hay errores, se loguean en consola.
+
+## Raíz hsml y include
+
+Formato completo:
+
+```xml
+<hsml>
+  <head>
+    <name>Default</name>
+    <meta type="position" x="0" y="0" z="0"/>
+    <meta type="scale" x="1" y="1" z="1"/>
+    <meta type="rotation" x="0" y="0" z="0"/>
+    <state name="greeting" type="string" default="holaaa"/>
+    <light type="ambient" intensity="0.7" />
+    <light type="directional" intensity="1.2" />
+  </head>
+  <space>
+    <!-- contenido -->
+  </space>
+</hsml>
+```
+
+- `<meta …>` aplica transform al root del `space`.
+- `<light>` dentro de `<head>` se inyecta al `space`.
+- `<state>` expone `dimension.state[name]` para usar en scripts.
+- Abreviado: `<space>…</space>` sigue funcionando.
+
+Includes recursivos:
+
+```xml
+<include src="./spaces/casa.hsml" x="-4" y="1" z="-6"/>
+```
+
+Dentro de `casa.hsml` puedes anidar más `include` (mesa, tv, etc.).
+
+## UI básica (text/html/video)
+
+Texto/HTML en el espacio (no overlay):
+
+```xml
+<text text="Hola mundo" color="#fff" fontsize="48" maxwidth="800" unitsperpx="0.002" x="0" y="1.5" z="-2"/>
+<html html="Título<br/>Subtítulo" color="#ffd54f" fontsize="42" bg="#202020" x="0" y="1.2" z="-2"/>
+```
+
+- Se recalculan al cambiar atributos (p. ej., `setAttribute('text', 'Nuevo')`).
+- `html` interpreta `<br/>` como salto; otros tags se ignoran.
+
+Video en un plano:
+
+```xml
+<video src="./media/demo.mp4" autoplay="true" loop="true" muted="true" width="1.6" x="0" y="1" z="-3"/>
+```
+
+- Ajusta tamaño por metadata si no fija `width/height`.
+
+## Navegación sandbox
+
+En scripts HSML tienes un `location` similar al navegador (interno al visor):
+
+- `location.href = './spaces/otra.hsml'` — carga otro HSML (actualiza `#level`).
+- `location.href = '<space>…</space>'` — carga HSML inline.
+- `location.assign(url)` / `location.replace(url)` — como en el navegador (SPA interna).
+- `location.reload()` — recarga el último espacio cargado.
 
 ## API `dimension`
 
@@ -273,4 +345,3 @@ dimension.camera.teleport(0, 1.7, 4);
 ---
 
 Si necesitas más ejemplos (UI interactiva, múltiples escenas, audio 3D avanzado) o deseas integrar con otra fuente de datos, abre un issue o comenta dónde quieres extender el framework.
-

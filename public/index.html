@@ -158,7 +158,7 @@
           return Reflect.get(target, prop, receiver);
         },
         set(target, prop, value){
-          if ([ 'src','class','id','scale','x','y','z','rx','ry','rz','color','texture','metalness','roughness','emissive','collider','visible','width','height','depth','radius','thickness' ].includes(prop)) { target.setAttribute(prop, value); scheduleDevToolUpdate(); return true; }
+          if ([ 'src','class','id','scale','x','y','z','rx','ry','rz','color','texture','metalness','roughness','emissive','collider','visible','width','height','depth','radius','thickness','text','html','font','fontsize','maxwidth','lineheight','bg','autoplay','loop','muted','unitsperpx' ].includes(prop)) { target.setAttribute(prop, value); scheduleDevToolUpdate(); return true; }
           return Reflect.set(target, prop, value);
         }
       });
@@ -229,6 +229,125 @@
       if (attrs.texture) new THREE.TextureLoader().load(attrs.texture, tex => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; mat.map = tex; mat.needsUpdate = true; });
       return mat;
     }
+
+    // ----------------- Text/HTML helpers -----------------
+    function drawWrappedTextCanvas(text, opts={}){
+      const fontSize = parseInt(opts.fontSize ?? 48);
+      const fontFamily = String(opts.fontFamily ?? 'sans-serif');
+      const color = String(opts.color ?? '#ffffff');
+      const bg = opts.bg ?? null; // null/transparent or color
+      const padding = parseInt(opts.padding ?? 16);
+      const lineHeight = parseFloat(opts.lineHeight ?? 1.2);
+      const maxWidth = parseInt(opts.maxWidth ?? 1024);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      const words = String(text||'').split(/\s+/);
+      const lines = [];
+      let line = '';
+      const testWidth = (s)=> ctx.measureText(s).width;
+      for(let i=0;i<words.length;i++){
+        const test = line ? (line+' '+words[i]) : words[i];
+        if (testWidth(test) <= maxWidth) line = test; else { if(line) lines.push(line); line = words[i]; }
+      }
+      if (line) lines.push(line);
+      const textWidth = Math.min(maxWidth, Math.max(...lines.map(s=>testWidth(s)), 1));
+      const textHeight = Math.max(1, Math.ceil(lines.length * fontSize * lineHeight));
+      canvas.width = Math.ceil(textWidth + padding*2);
+      canvas.height = Math.ceil(textHeight + padding*2);
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width *= ratio; canvas.height *= ratio;
+      canvas.style.width = (canvas.width/ratio)+'px';
+      canvas.style.height = (canvas.height/ratio)+'px';
+      ctx.scale(ratio, ratio);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if (bg){ ctx.fillStyle = bg; ctx.fillRect(0,0,canvas.width/ratio,canvas.height/ratio); }
+      ctx.fillStyle = color;
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+      const x = padding, startY = padding; let y = startY;
+      for(const ln of lines){ ctx.fillText(ln, x, y); y += fontSize*lineHeight; }
+      return { canvas, widthPx: canvas.width/ratio, heightPx: canvas.height/ratio };
+    }
+
+    function createTextPlane(attrs, kind='text'){
+      const opts = {
+        fontSize: parseInt(attrs.fontsize ?? attrs.fontSize ?? 48),
+        fontFamily: attrs.font || 'sans-serif',
+        color: attrs.color || '#ffffff',
+        bg: attrs.bg || null,
+        maxWidth: parseInt(attrs.maxwidth ?? attrs.maxWidth ?? 1024),
+        lineHeight: parseFloat(attrs.lineheight ?? 1.2),
+      };
+      const contentRaw = kind==='html' ? (attrs.html || attrs.text || '') : (attrs.text || '');
+      const content = kind==='html' ? String(contentRaw).replace(/<br\s*\/?\s*>/gi, '\n').replace(/<[^>]+>/g,'') : String(contentRaw);
+      const drawn = drawWrappedTextCanvas(content, opts);
+      const texture = new THREE.CanvasTexture(drawn.canvas); texture.colorSpace = THREE.SRGBColorSpace;
+      const material = new THREE.MeshBasicMaterial({ map:texture, transparent:true });
+      const unitsPerPx = parseFloat(attrs.unitsperpx ?? 0.002);
+      const w = parseFloat(attrs.width ?? (drawn.widthPx*unitsPerPx));
+      const h = parseFloat(attrs.height ?? (drawn.heightPx*unitsPerPx));
+      const geo = new THREE.PlaneGeometry(Math.max(1e-3,w), Math.max(1e-3,h));
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.userData.kind = kind;
+      mesh.userData._content = content;
+      mesh.userData._opts = opts;
+      mesh.userData._unitsPerPx = unitsPerPx;
+      mesh.userData.updateContent = (newAttrs)=>{
+        const nextRaw = kind==='html' ? (newAttrs.html || newAttrs.text || '') : (newAttrs.text || '');
+        const next = kind==='html' ? String(nextRaw).replace(/<br\s*\/?\s*>/gi, '\n').replace(/<[^>]+>/g,'') : String(nextRaw);
+        const o = {
+          fontSize: parseInt(newAttrs.fontsize ?? newAttrs.fontSize ?? mesh.userData._opts.fontSize),
+          fontFamily: newAttrs.font || mesh.userData._opts.fontFamily,
+          color: newAttrs.color || mesh.userData._opts.color,
+          bg: newAttrs.bg ?? mesh.userData._opts.bg,
+          maxWidth: parseInt(newAttrs.maxwidth ?? newAttrs.maxWidth ?? mesh.userData._opts.maxWidth),
+          lineHeight: parseFloat(newAttrs.lineheight ?? mesh.userData._opts.lineHeight),
+        };
+        const d = drawWrappedTextCanvas(next, o);
+        mesh.material.map.dispose();
+        mesh.material.map = new THREE.CanvasTexture(d.canvas); mesh.material.map.colorSpace = THREE.SRGBColorSpace; mesh.material.needsUpdate = true;
+        const unitsPerPx = parseFloat(newAttrs.unitsperpx ?? mesh.userData._unitsPerPx);
+        const w = parseFloat(newAttrs.width ?? (d.widthPx*unitsPerPx));
+        const h = parseFloat(newAttrs.height ?? (d.heightPx*unitsPerPx));
+        mesh.geometry.dispose(); mesh.geometry = new THREE.PlaneGeometry(Math.max(1e-3,w), Math.max(1e-3,h));
+        mesh.userData._content = next; mesh.userData._opts = o; mesh.userData._unitsPerPx = unitsPerPx;
+      };
+      return mesh;
+    }
+
+    // ----------------- Video helper -----------------
+    function createVideoPlane(attrs){
+      const wAttr = parseFloat(attrs.width ?? 1.6);
+      const hAttr = parseFloat(attrs.height ?? 0.9);
+      const geo = new THREE.PlaneGeometry(wAttr, hAttr);
+      const video = document.createElement('video');
+      if (attrs.src) video.src = attrs.src;
+      video.autoplay = String(attrs.autoplay ?? 'true').toLowerCase()!=='false';
+      video.loop = String(attrs.loop ?? 'true').toLowerCase()!=='false';
+      video.muted = String(attrs.muted ?? 'true').toLowerCase()!=='false';
+      video.playsInline = true;
+      const tex = new THREE.VideoTexture(video); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true;
+      const mat = new THREE.MeshBasicMaterial({ map: tex });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.userData.kind = 'video';
+      mesh.userData._video = video;
+      mesh.userData.updateFromAttrs = (newAttrs)=>{
+        const v = mesh.userData._video;
+        if(newAttrs.src && newAttrs.src!==v.src){ v.src = newAttrs.src; if(v.autoplay) v.play().catch(()=>{}); }
+        v.autoplay = String(newAttrs.autoplay ?? v.autoplay).toLowerCase()!=='false';
+        v.loop = String(newAttrs.loop ?? v.loop).toLowerCase()!=='false';
+        v.muted = String(newAttrs.muted ?? v.muted).toLowerCase()!=='false';
+      };
+      video.addEventListener('loadedmetadata', ()=>{
+        const aspect = (video.videoWidth||16)/(video.videoHeight||9);
+        let w = parseFloat(attrs.width ?? (1.6));
+        let h = parseFloat(attrs.height ?? (w/aspect));
+        mesh.geometry.dispose(); mesh.geometry = new THREE.PlaneGeometry(w, h);
+      });
+      if (video.autoplay) video.play().catch(()=>{});
+      return mesh;
+    }
     const gltfCache = new Map();
     async function getGLTFScene(src){ if(gltfCache.has(src)) return gltfCache.get(src).clone(true); const loader=new GLTFLoader(); return new Promise((resolve,reject)=>{ loader.load(src, (gltf)=>{ gltfCache.set(src,gltf.scene); resolve(gltf.scene.clone(true)); const mixer=new THREE.AnimationMixer(gltf.scene); mixers.add(mixer); if(gltf.animations && gltf.animations.length){ const clip = gltf.animations[0]; mixer.clipAction(clip).play(); } }, undefined, reject); }); }
 
@@ -296,6 +415,9 @@
       else if (tag==='box') { const w=parseFloat(a.width??1), h=parseFloat(a.height??1), d=parseFloat(a.depth??1); const geo=new THREE.BoxGeometry(w,h,d); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
       else if (tag==='sphere'){ const r=parseFloat(a.radius??0.5), ws=parseInt(a.widthSegments??16), hs=parseInt(a.heightSegments??12); const geo=new THREE.SphereGeometry(r,ws,hs); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
       else if (tag==='plane'){ const w=parseFloat(a.width??5), h=parseFloat(a.height??5); const geo=new THREE.PlaneGeometry(w,h); const mesh=new THREE.Mesh(geo, getDefaultMaterial(a)); mesh.rotation.x=-Math.PI/2; obj=mesh; }
+      else if (tag==='text'){ obj=createTextPlane(a, 'text'); }
+      else if (tag==='html'){ obj=createTextPlane(a, 'html'); }
+      else if (tag==='video'){ obj=createVideoPlane(a); }
       else if (tag==='light'){ const type=(a.type||'ambient').toLowerCase(); const color=new THREE.Color(a.color||'#ffffff'); const intensity=parseFloat(a.intensity??1); if (type==='ambient') obj=new THREE.AmbientLight(color,intensity); else if(type==='directional'){ obj=new THREE.DirectionalLight(color,intensity); obj.position.set(5,10,5); } else if(type==='point'){ obj=new THREE.PointLight(color,intensity, parseFloat(a.distance??0)); } else if(type==='hemisphere'){ obj=new THREE.HemisphereLight(0xffffff,0x444444,intensity); } else { obj=new THREE.Object3D(); } }
       else if (tag==='audio'){ obj=new THREE.Object3D(); }
       else { obj=new THREE.Object3D(); }
@@ -322,6 +444,12 @@
         if (attrs.rx!==undefined) obj.rotation.x = parseFloat(attrs.rx)||0;
         if (attrs.ry!==undefined) obj.rotation.y = parseFloat(attrs.ry)||0;
         if (attrs.rz!==undefined) obj.rotation.z = parseFloat(attrs.rz)||0;
+        if (obj.userData && (obj.userData.kind==='text' || obj.userData.kind==='html') && typeof obj.userData.updateContent==='function'){
+          obj.userData.updateContent(attrs);
+        }
+        if (obj.userData && obj.userData.kind==='video' && typeof obj.userData.updateFromAttrs==='function'){
+          obj.userData.updateFromAttrs(attrs);
+        }
         if (attrs.color!==undefined){
           const col = new THREE.Color(attrs.color);
           if (obj.isLight && obj.color){ obj.color.copy(col); }
@@ -423,8 +551,16 @@
         if(input.keys['KeyD']) move.add(right);
         if (move.lengthSq()>1e-6) move.normalize().multiplyScalar(base*dt);
 
-        let desired = this.position.clone().add(move);
-        desired = helpers.resolveCollisionsXZ(desired, this.radius);
+        // Subdivide movement to avoid tunneling through thin walls
+        let desired = this.position.clone();
+        if (move.lengthSq()>0){
+          const steps = Math.max(1, Math.ceil(move.length() / (this.radius*0.5)));
+          const stepVec = move.clone().multiplyScalar(1/steps);
+          for(let i=0;i<steps;i++){
+            desired.add(stepVec);
+            desired = helpers.resolveCollisionsXZ(desired, this.radius);
+          }
+        }
 
         if (input.keys['Space'] && this.grounded) this.velY = this.jumpSpeed;
         const nextY = this.applyVerticalPhysics(dt, desired.x, desired.z);
@@ -474,8 +610,14 @@
 
         if(move.lengthSq()>1e-6){
           move.normalize().multiplyScalar(base*dt);
-          let desired = this.position.clone().add(move);
-          desired = helpers.resolveCollisionsXZ(desired, this.radius);
+          // Subdivide movement to robustify collision in VR
+          let desired = this.position.clone();
+          const steps = Math.max(1, Math.ceil(move.length() / (this.radius*0.5)));
+          const stepVec = move.clone().multiplyScalar(1/steps);
+          for(let i=0;i<steps;i++){
+            desired.add(stepVec);
+            desired = helpers.resolveCollisionsXZ(desired, this.radius);
+          }
           const nextY = this.applyVerticalPhysics(dt, desired.x, desired.z);
           this.position.set(desired.x, nextY, desired.z);
         } else {
