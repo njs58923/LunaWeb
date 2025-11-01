@@ -2,79 +2,31 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Virtual DOM + Scripts + Proxy + DevTools</title>
+  <title>Framework V3.1 • Espacios Virtuales (HSML)</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      font-family: sans-serif;
-      background: #181818;
-      color: #eee;
-    }
-    #toolbar {
-      padding: 8px 10px;
-      background: #222;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-      position: relative;
-      z-index: 2;
-    }
-    #urlInput {
-      flex: 1;
-      padding: 6px 8px;
-      border: none;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    button {
-      padding: 6px 14px;
-      cursor: pointer;
-      border: none;
-      border-radius: 4px;
-      background: #444;
-      color: #fff;
-      font-size: 14px;
-      transition: background 0.2s;
-    }
-    button:hover { background: #666; }
-    canvas { display: block; flex: 1; }
+    :root { --bg:#181818; --fg:#eee; --panel:#222; --btn:#444; --btnH:#666; }
+    body { margin:0; overflow:hidden; display:flex; flex-direction:column; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; background:var(--bg); color:var(--fg); }
+    #toolbar { padding:8px 10px; background:var(--panel); display:flex; gap:10px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,.5); position:relative; z-index:2; }
+    #urlInput { flex:1; padding:6px 8px; border:none; border-radius:4px; font-size:14px; }
+    button { padding:6px 14px; cursor:pointer; border:none; border-radius:4px; background:var(--btn); color:#fff; font-size:14px; transition:background .2s, transform .02s; }
+    button:hover{ background:var(--btnH); }
+    button:active{ transform:translateY(1px); }
+    canvas { display:block; flex:1; }
 
-    /* --- DevTools --- */
-    #devPanel {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      background: rgba(20,20,20,0.95);
-      color: #eee;
-      font-family: Consolas, monospace;
-      font-size: 13px;
-      padding: 8px;
-      max-height: 340px;
-      overflow-y: auto;
-      display: none;
-      z-index: 1000;
-      border-top: 2px solid #444;
-    }
-    #devPanelHeader {
-      display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap;
-    }
-    .devTabBtn { font-size: 12px; padding: 4px 10px; background: #333; border: none; border-radius: 4px; }
-    .devTabBtn:hover { background: #555; }
-    #inspectorView, #statusView { margin-top: 6px; }
-    #statusView { display: none; }
-    #treeView ul { list-style: none; margin-left: 20px; padding-left: 10px; border-left: 1px dotted #555; }
-    #treeView li { margin: 4px 0; }
-    #treeView span { cursor: text; }
-    #treeView .attrLabel { margin-left: 4px; }
-    #treeView .attrInput { outline: 1px dashed transparent; padding: 0 3px; border-radius: 3px; display: inline-block; white-space: pre; margin-right: 2px; }
-    #treeView .attrInput:focus { outline: 1px dashed #66f; background: #222; }
-    #treeView .actionBtn { margin-left: 8px; font-size: 11px; padding: 1px 4px; cursor: pointer; }
-    #smallNote { opacity: 0.7; font-size: 11px; margin-left: auto; }
+    #devPanel { position:fixed; bottom:0; left:0; right:0; background:rgba(20,20,20,0.95); color:#eee; font-family:Consolas, monospace; font-size:13px; padding:8px; max-height:40vh; overflow-y:auto; display:none; z-index:5; border-top:2px solid #444; }
+    #devPanelHeader { display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
+    .devTabBtn { font-size:12px; padding:4px 10px; background:#333; border:none; border-radius:4px; }
+    .devTabBtn:hover{ background:#555; }
+    #inspectorView, #statusView { margin-top:6px; }
+    #statusView { display:none; }
+    #treeView ul{ list-style:none; margin-left:20px; padding-left:10px; border-left:1px dotted #555; }
+    #treeView li{ margin:4px 0; }
+    #treeView .attrLabel{ margin-left:4px; }
+    #treeView .attrInput{ outline:1px dashed transparent; padding:0 3px; border-radius:3px; display:inline-block; white-space:pre; margin-right:2px; }
+    #treeView .attrInput:focus{ outline:1px dashed #66f; background:#222; }
+    #smallNote { opacity:.8; font-size:11px; margin-left:auto; }
   </style>
-  <!-- Import map para Three.js -->
+
   <script type="importmap">
     {
       "imports": {
@@ -85,37 +37,29 @@
   </script>
 </head>
 <body>
-  <!-- Barra Superior -->
   <div id="toolbar">
-    <input id="urlInput" type="text" placeholder="Ingrese URL de HSML o pegue el HSML aquí" value="/static/main.hsml">
+    <input id="urlInput" type="text" placeholder="Pega HSML o URL (Enter) — #level en hash para autoload" value="">
     <button id="loadButton">Cargar HSML</button>
-    <button id="toggleDevPanel">Mostrar DevTools</button>
+    <button id="toggleDevPanel">DevTools</button>
     <button id="exportBtn">Exportar HSML</button>
-    <span id="smallNote">WASD + mouse para cámara libre • R para recargar</span>
+    <span id="smallNote">Click para capturar mouse • WASD moverse • Shift sprint • Space salto • R recargar</span>
   </div>
 
-  <!-- Lienzo principal de Three.js -->
   <canvas id="canvas"></canvas>
 
-  <!-- Panel de Desarrollo -->
   <div id="devPanel">
     <div id="devPanelHeader">
       <button id="inspectorTabBtn" class="devTabBtn">Inspector</button>
       <button id="statusTabBtn" class="devTabBtn">Status</button>
-      <button id="toggleFreeCameraBtn" class="devTabBtn">Activar Cámara Libre</button>
-      <button id="toggleLightingBtn" class="devTabBtn">Activar Iluminación</button>
-      <button id="toggleGridBtn" class="devTabBtn">Mostrar Grid</button>
+      <button id="toggleFreeCameraBtn" class="devTabBtn">Capturar Mouse</button>
+      <button id="toggleLightingBtn" class="devTabBtn">Iluminación</button>
+      <button id="toggleGridBtn" class="devTabBtn">Grid</button>
       <button id="reloadBtn" class="devTabBtn">Recargar</button>
     </div>
-
-    <div id="inspectorView">
-      <strong>Árbol Virtual HSML</strong>
-      <div id="treeView"></div>
-    </div>
-
+    <div id="inspectorView"><strong>Árbol Virtual HSML</strong><div id="treeView"></div></div>
     <div id="statusView">
       <strong>Estado del Render</strong>
-      <div style="margin-top: 4px;">
+      <div style="margin-top:4px;">
         <div>FPS: <span id="fpsValue">0</span></div>
         <div>Memoria: <span id="ramValue">N/A</span></div>
       </div>
@@ -128,699 +72,550 @@
     import { VRButton } from 'three/addons/webxr/VRButton.js';
     import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 
-    // ========== 0) Variables y clases globales ==========
-    class VirtualNode {
-      constructor(tag) {
-        this.tag = tag;
-        this.attributes = {};
-        this.children = [];
-        this.key = VirtualNode.nextKey++;
+    // ===================== Núcleo V3.1 (agnóstico, VR-ready) =====================
+    class VirtualNode { 
+      constructor(tag){ 
+        this.tag=tag; 
+        this.attributes={}; 
+        this.children=[]; 
+        this.key=VirtualNode.nextKey++;
+      } 
+      setAttribute(a,v){ 
+        this.attributes[a]=v;
+      } 
+      appendChild(c){
+        this.children.push(c);
       }
-      setAttribute(attr, value) { this.attributes[attr] = value; }
-      appendChild(child) { this.children.push(child); }
     }
+    
     VirtualNode.nextKey = 1;
 
     let virtualDOM = null;
     const nodeKeyToObject = new Map();
     const vnodeToProxy = new WeakMap();
-    const userUpdateFunctions = [];
 
-    // Índices simples para selectores (#id, .class, tag)
+    // Índices
     const idToVNode = new Map();
     const classToVNodes = new Map();
 
-    // Control de FPS/delta
-    let lastTimeStat = performance.now();
-    let frames = 0;
-    let currentFPS = 0;
-    let lastFrameTS = performance.now();
+    // Loop de usuario
+    const userUpdateFunctions = new Set();
 
-    // Iluminación
-    let lightingEnabled = false;
+    // Bus de eventos
+    const eventHandlers = new Map();
+    function on(event, handler){ if(!eventHandlers.has(event)) eventHandlers.set(event, new Set()); eventHandlers.get(event).add(handler); }
+    function off(event, handler){ const s=eventHandlers.get(event); if(s) s.delete(handler); }
+    function emit(event, data){ const s=eventHandlers.get(event); if(!s) return; s.forEach(fn=>{ try{ fn(data); }catch(e){ console.error('event handler error', e); } }); }
 
-    // Grid/Axes helpers
-    const gridHelper = new THREE.GridHelper(40, 40, 0x444444, 0x222222);
-    gridHelper.visible = false;
-    const axesHelper = new THREE.AxesHelper(3);
-    axesHelper.visible = false;
+    // Helpers
+    const MATH = { clamp:(v,a,b)=>Math.max(a,Math.min(b,v)) };
 
-    // Cache de modelos
-    const gltfCache = new Map();
+    // Iluminación & helpers
+    let lightingEnabled = true;
+    const gridHelper = new THREE.GridHelper(120, 120, 0x444444, 0x222222); gridHelper.visible = false;
+    const axesHelper = new THREE.AxesHelper(3); axesHelper.visible = false;
 
-    // Behaviors
-    const behaviorRegistry = new Map();
+    // Stats
+    let lastTimeStat = performance.now(), frames=0, currentFPS=0, lastFrameTS=performance.now();
 
-    // ========== 1) Proxy de VirtualNode, con notificación al DevTool ==========
-    let devtoolDirty = false;    // Indica si se debe refrescar el Inspector
-    let lastDevtoolUpdate = 0;   // Último momento de refresh
-    const DEVTOOL_THROTTLE_MS = 100;
+    // DevTools scheduling
+    let devtoolDirty=false, lastDevtoolUpdate=0; const DEVTOOL_THROTTLE_MS=100;
+    function scheduleDevToolUpdate(){ devtoolDirty=true; }
+    function maybeUpdateDevTool(){ if(!devtoolDirty) return; const now=performance.now(); if(now-lastDevtoolUpdate>=DEVTOOL_THROTTLE_MS){ reindexVirtualDOM(); updateDevTool(); devtoolDirty=false; lastDevtoolUpdate=now; } }
 
-    function scheduleDevToolUpdate() { devtoolDirty = true; }
-
-    function maybeUpdateDevTool() {
-      if (!devtoolDirty) return;
-      const now = performance.now();
-      if (now - lastDevtoolUpdate >= DEVTOOL_THROTTLE_MS) {
-        reindexVirtualDOM();
-        updateDevTool();
-        devtoolDirty = false;
-        lastDevtoolUpdate = now;
-      }
-    }
-
-    function createProxiedNode(tagOrExisting) {
-      const realNode = (typeof tagOrExisting === 'string') ? new VirtualNode(tagOrExisting) : tagOrExisting;
+    function createProxiedNode(tagOrExisting){
+      const realNode = (typeof tagOrExisting==='string') ? new VirtualNode(tagOrExisting) : tagOrExisting;
       if (vnodeToProxy.has(realNode)) return vnodeToProxy.get(realNode);
       const proxy = new Proxy(realNode, {
-        get(target, prop, receiver) {
-          // position
+        get(target, prop, receiver){
           if (prop === 'position') {
-            return {
-              get x() { return parseFloat(target.attributes.x ?? 0); },
-              set x(val) { target.setAttribute('x', val); scheduleDevToolUpdate(); },
-              get y() { return parseFloat(target.attributes.y ?? 0); },
-              set y(val) { target.setAttribute('y', val); scheduleDevToolUpdate(); },
-              get z() { return parseFloat(target.attributes.z ?? 0); },
-              set z(val) { target.setAttribute('z', val); scheduleDevToolUpdate(); }
-            };
+            return { get x(){return parseFloat(target.attributes.x ?? 0);}, set x(v){target.setAttribute('x', v); scheduleDevToolUpdate();}, get y(){return parseFloat(target.attributes.y ?? 0);}, set y(v){target.setAttribute('y', v); scheduleDevToolUpdate();}, get z(){return parseFloat(target.attributes.z ?? 0);}, set z(v){target.setAttribute('z', v); scheduleDevToolUpdate();} };
           }
-          // rotation
           if (prop === 'rotation') {
-            return {
-              get x() { return parseFloat(target.attributes.rx ?? 0); },
-              set x(val) { target.setAttribute('rx', val); scheduleDevToolUpdate(); },
-              get y() { return parseFloat(target.attributes.ry ?? 0); },
-              set y(val) { target.setAttribute('ry', val); scheduleDevToolUpdate(); },
-              get z() { return parseFloat(target.attributes.rz ?? 0); },
-              set z(val) { target.setAttribute('rz', val); scheduleDevToolUpdate(); }
-            };
+            return { get x(){return parseFloat(target.attributes.rx ?? 0);}, set x(v){target.setAttribute('rx', v); scheduleDevToolUpdate();}, get y(){return parseFloat(target.attributes.ry ?? 0);}, set y(v){target.setAttribute('ry', v); scheduleDevToolUpdate();}, get z(){return parseFloat(target.attributes.rz ?? 0);}, set z(v){target.setAttribute('rz', v); scheduleDevToolUpdate();} };
           }
-          if (prop === 'appendChild') {
-            return (childProxy) => { target.children.push(childProxy); };
-          }
-          if (prop === 'setAttribute') {
-            return (attr, val) => { target.setAttribute(attr, val); scheduleDevToolUpdate(); };
-          }
+          if (prop === 'appendChild') { return (childProxy)=>{ target.children.push(childProxy); }; }
+          if (prop === 'setAttribute') { return (attr,val)=>{ target.setAttribute(attr,val); scheduleDevToolUpdate(); }; }
           if (prop in target.attributes) return target.attributes[prop];
           return Reflect.get(target, prop, receiver);
         },
-        set(target, prop, value) {
-          if (['src','class','collider','rigidbody','id','scale','x','y','z','rx','ry','rz','color']
-              .includes(prop)) {
-            target.setAttribute(prop, value);
-            scheduleDevToolUpdate();
-            return true;
-          }
+        set(target, prop, value){
+          if ([ 'src','class','id','scale','x','y','z','rx','ry','rz','color','texture','metalness','roughness','emissive','collider','visible','width','height','depth','radius','thickness' ].includes(prop)) { target.setAttribute(prop, value); scheduleDevToolUpdate(); return true; }
           return Reflect.set(target, prop, value);
         }
       });
-      vnodeToProxy.set(realNode, proxy);
-      return proxy;
+      vnodeToProxy.set(realNode, proxy); return proxy;
     }
 
-    // ========== 2) HSML => VirtualNode (tags básicos extra) ==========
-    function parseHSML(xmlNode) {
-      if (!xmlNode || xmlNode.nodeType !== Node.ELEMENT_NODE) return null;
-      const vnode = new VirtualNode(xmlNode.nodeName);
-      for (let i = 0; i < xmlNode.attributes.length; i++) {
-        const attr = xmlNode.attributes[i];
-        vnode.setAttribute(attr.name, attr.value);
-      }
-      Array.from(xmlNode.childNodes).forEach(child => {
-        const childVNode = parseHSML(child);
-        if (childVNode) vnode.appendChild(childVNode);
-      });
-      return vnode;
+    // ----------------- Parser HSML -----------------
+    function parseHSML(xmlNode){ if(!xmlNode||xmlNode.nodeType!==Node.ELEMENT_NODE) return null; const vnode=new VirtualNode(xmlNode.nodeName); for(let i=0;i<xmlNode.attributes.length;i++){ const a=xmlNode.attributes[i]; vnode.setAttribute(a.name, a.value); } Array.from(xmlNode.childNodes).forEach(ch=>{ const c=parseHSML(ch); if(c) vnode.appendChild(c); }); return vnode; }
+    function reindexVirtualDOM(){ idToVNode.clear(); classToVNodes.clear(); (function walk(v){ if(!v) return; const id=v.attributes.id; if(id) idToVNode.set(id,v); const cls=(v.attributes.class||'').trim(); if(cls){ cls.split(/\s+/).forEach(c=>{ if(!classToVNodes.has(c)) classToVNodes.set(c,new Set()); classToVNodes.get(c).add(v); }); } (v.children||[]).forEach(walk); })(virtualDOM); }
+
+    // ----------------- Construcción de escena (tags genéricos) -----------------
+    const mixers = new Set();
+
+    function getDefaultMaterial(attrs){
+      const color = attrs.color ? new THREE.Color(attrs.color) : new THREE.Color('#cccccc');
+      const mat = lightingEnabled ? new THREE.MeshStandardMaterial({ color, metalness: parseFloat(attrs.metalness ?? 0), roughness: parseFloat(attrs.roughness ?? 1), emissive: new THREE.Color(attrs.emissive||'#000000') }) : new THREE.MeshBasicMaterial({ color });
+      if (attrs.texture) new THREE.TextureLoader().load(attrs.texture, tex => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; mat.map = tex; mat.needsUpdate = true; });
+      return mat;
     }
+    const gltfCache = new Map();
+    async function getGLTFScene(src){ if(gltfCache.has(src)) return gltfCache.get(src).clone(true); const loader=new GLTFLoader(); return new Promise((resolve,reject)=>{ loader.load(src, (gltf)=>{ gltfCache.set(src,gltf.scene); resolve(gltf.scene.clone(true)); const mixer=new THREE.AnimationMixer(gltf.scene); mixers.add(mixer); if(gltf.animations && gltf.animations.length){ const clip = gltf.animations[0]; mixer.clipAction(clip).play(); } }, undefined, reject); }); }
 
-    function reindexVirtualDOM() {
-      idToVNode.clear(); classToVNodes.clear();
-      function walk(v) {
-        if (!v) return;
-        const id = v.attributes.id; if (id) idToVNode.set(id, v);
-        const cls = (v.attributes.class || '').trim();
-        if (cls) {
-          cls.split(/\s+/).forEach(c => {
-            if (!classToVNodes.has(c)) classToVNodes.set(c, new Set());
-            classToVNodes.get(c).add(v);
-          });
-        }
-        (v.children||[]).forEach(walk);
-      }
-      if (virtualDOM) walk(virtualDOM);
-    }
+    function clearColliders(){ staticColliders.length=0; }
 
-    // ========== 3) Construir escena (tags: group, model, box, sphere, plane, light) ==========
-    function getDefaultMaterial(color) {
-      const col = (color !== undefined) ? new THREE.Color(color) : new THREE.Color('#cccccc');
-      // Si no hay luces, usa Basic para que se vea. Si hay luces, usa Standard.
-      return lightingEnabled ? new THREE.MeshStandardMaterial({ color: col }) : new THREE.MeshBasicMaterial({ color: col });
-    }
-
-    async function getGLTFScene(src) {
-      if (gltfCache.has(src)) return gltfCache.get(src).clone(true);
-      const loader = new GLTFLoader();
-      return new Promise((resolve, reject) => {
-        loader.load(src, (gltf) => {
-          gltfCache.set(src, gltf.scene);
-          resolve(gltf.scene.clone(true));
-        }, undefined, (err) => reject(err));
-      });
-    }
-
-    function buildSceneFromVirtual(vnode, parentObj) {
-      let obj;
-      const tag = vnode.tag;
-
-      if (tag === 'group' || tag === 'space') {
-        obj = new THREE.Object3D();
-      } else if (tag === 'model') {
-        obj = new THREE.Object3D();
-        const src = vnode.attributes.src;
-        if (src) {
-          getGLTFScene(src).then(sceneChild => {
-            while (obj.children.length > 0) obj.remove(obj.children[0]);
-            obj.add(sceneChild);
-          }).catch(err => console.error('Error al cargar modelo:', src, err));
-        }
-      } else if (tag === 'box') {
-        const w = parseFloat(vnode.attributes.width ?? 1);
-        const h = parseFloat(vnode.attributes.height ?? 1);
-        const d = parseFloat(vnode.attributes.depth ?? 1);
-        const geo = new THREE.BoxGeometry(w, h, d);
-        const mesh = new THREE.Mesh(geo, getDefaultMaterial(vnode.attributes.color));
-        obj = mesh;
-      } else if (tag === 'sphere') {
-        const r = parseFloat(vnode.attributes.radius ?? 0.5);
-        const ws = parseInt(vnode.attributes.widthSegments ?? 16);
-        const hs = parseInt(vnode.attributes.heightSegments ?? 12);
-        const geo = new THREE.SphereGeometry(r, ws, hs);
-        const mesh = new THREE.Mesh(geo, getDefaultMaterial(vnode.attributes.color));
-        obj = mesh;
-      } else if (tag === 'plane') {
-        const w = parseFloat(vnode.attributes.width ?? 5);
-        const h = parseFloat(vnode.attributes.height ?? 5);
-        const geo = new THREE.PlaneGeometry(w, h);
-        const mesh = new THREE.Mesh(geo, getDefaultMaterial(vnode.attributes.color));
-        mesh.rotation.x = -Math.PI/2; // suelo por defecto
-        obj = mesh;
-      } else if (tag === 'light') {
-        const type = (vnode.attributes.type || 'ambient').toLowerCase();
-        const color = new THREE.Color(vnode.attributes.color || '#ffffff');
-        const intensity = parseFloat(vnode.attributes.intensity ?? 1);
-        if (type === 'ambient') obj = new THREE.AmbientLight(color, intensity);
-        else if (type === 'directional') {
-          obj = new THREE.DirectionalLight(color, intensity);
-          obj.position.set(5,10,5);
-        } else if (type === 'point') {
-          obj = new THREE.PointLight(color, intensity, parseFloat(vnode.attributes.distance ?? 0));
-        } else {
-          obj = new THREE.Object3D();
-        }
-      } else {
-        obj = new THREE.Object3D();
-      }
-
-      obj.userData.key = vnode.key;
-      parentObj.add(obj);
-      nodeKeyToObject.set(vnode.key, obj);
-
-      // Aplica behaviors según class
-      applyBehaviors(vnode, obj);
-
-      // Hijos
-      vnode.children.forEach(child => { buildSceneFromVirtual(child, obj); });
-    }
-
-    function applyTransformsRecursively(vnode) {
-      const obj = nodeKeyToObject.get(vnode.key);
-      if (obj) {
-        if (vnode.attributes.scale !== undefined) {
-          const s = parseFloat(vnode.attributes.scale);
-          if (!isNaN(s)) obj.scale.set(s, s, s);
-        }
-        const x = parseFloat(vnode.attributes.x ?? 0);
-        const y = parseFloat(vnode.attributes.y ?? 0);
-        const z = parseFloat(vnode.attributes.z ?? 0);
-        obj.position.set(x, y, z);
-        const rx = parseFloat(vnode.attributes.rx ?? 0);
-        const ry = parseFloat(vnode.attributes.ry ?? 0);
-        const rz = parseFloat(vnode.attributes.rz ?? 0);
-        obj.rotation.set(rx, ry, rz);
-      }
-      vnode.children.forEach(child => applyTransformsRecursively(child));
-    }
-
-    function applyBehaviors(vnode, object3D) {
-      const classes = (vnode.attributes.class || '').split(/\s+/).filter(Boolean);
-      classes.forEach(cls => {
-        const factory = behaviorRegistry.get(cls);
-        if (factory) {
-          const updater = factory({ vnode, object: object3D, attrs: vnode.attributes, dimension });
-          if (typeof updater === 'function') userUpdateFunctions.push(updater);
-        }
-      });
-    }
-
-    // Algunos behaviors built-in
-    behaviorRegistry.set('spin', ({ vnode }) => (dt) => { vnode.attributes.ry = (parseFloat(vnode.attributes.ry||0) + dt) % (Math.PI*2); });
-    behaviorRegistry.set('bob',  ({ vnode }) => { let t=0; return (dt)=>{ t+=dt; vnode.attributes.y = Math.sin(t)*0.5 + (parseFloat(vnode.attributes.y0||0)); }; });
-    behaviorRegistry.set('orbit', ({ vnode, attrs }) => { const r=parseFloat(attrs.radius||5), s=parseFloat(attrs.speed||0.5); let a=parseFloat(attrs.angle||0); return (dt)=>{ a+=dt*s; vnode.attributes.x=Math.cos(a)*r; vnode.attributes.z=Math.sin(a)*r; vnode.attributes.ry = -a; }; });
-
-    // ========== 5) DevTools: Inspector / Árbol Virtual ==========
-    function updateDevTool() {
-      const treeView = document.getElementById('treeView');
-      treeView.innerHTML = '';
-      if (!virtualDOM) return;
-      const domTree = buildVirtualTreeHTML(virtualDOM);
-      if (domTree) treeView.appendChild(domTree);
-    }
-
-    function buildVirtualTreeHTML(vnode) {
-      const li = document.createElement('li');
-      const header = document.createElement('div');
-      header.style.display = 'flex';
-      header.style.flexWrap = 'wrap';
-      header.style.alignItems = 'center';
-
-      const tagSpan = document.createElement('span');
-      tagSpan.textContent = `<${vnode.tag}>`;
-      header.appendChild(tagSpan);
-
-      for (const attrName in vnode.attributes) {
-        const attrValue = vnode.attributes[attrName];
-        const attrLabel = document.createElement('span');
-        attrLabel.classList.add('attrLabel');
-        attrLabel.textContent = ` ${attrName}="`;
-
-        const attrInput = document.createElement('span');
-        attrInput.classList.add('attrInput');
-        attrInput.contentEditable = true;
-        attrInput.textContent = attrValue;
-        attrInput.addEventListener('blur', () => {
-          const newVal = attrInput.textContent.trim();
-          vnode.attributes[attrName] = newVal;
-          scheduleDevToolUpdate();
-        });
-
-        attrLabel.appendChild(attrInput);
-        const quoteSpan = document.createElement('span');
-        quoteSpan.textContent = `"`;
-        attrLabel.appendChild(quoteSpan);
-        header.appendChild(attrLabel);
-      }
-
-      const centerBtn = document.createElement('button');
-      centerBtn.textContent = 'Centrar';
-      centerBtn.classList.add('actionBtn');
-      centerBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        scene.traverse(obj => {
-          if (obj.userData && obj.userData.key === vnode.key) centerCameraOnObject(obj);
-        });
-      });
-      header.appendChild(centerBtn);
-
-      const removeBtn = document.createElement('button');
-      removeBtn.textContent = 'Eliminar';
-      removeBtn.classList.add('actionBtn');
-      removeBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        removeNodeByKey(virtualDOM, vnode.key);
-        const obj = nodeKeyToObject.get(vnode.key);
-        if (obj && obj.parent) obj.parent.remove(obj);
-        nodeKeyToObject.delete(vnode.key);
-        scheduleDevToolUpdate();
-      });
-      header.appendChild(removeBtn);
-
-      li.appendChild(header);
-
-      if (vnode.children.length > 0) {
-        const ul = document.createElement('ul');
-        vnode.children.forEach(child => { const childHTML = buildVirtualTreeHTML(child); if (childHTML) ul.appendChild(childHTML); });
-        li.appendChild(ul);
-      }
-      return li;
-    }
-
-    function removeNodeByKey(rootVNode, key) {
-      if (!rootVNode || !rootVNode.children) return false;
-      for (let i = 0; i < rootVNode.children.length; i++) {
-        if (rootVNode.children[i].key === key) { rootVNode.children.splice(i, 1); return true; }
-        else { if (removeNodeByKey(rootVNode.children[i], key)) return true; }
-      }
+    // collider="true" (o vacío) para primitivas; se ignoran modelos de alto poligonaje.
+    function isColliderEnabled(attrs){
+      if (attrs.collider === undefined) return false;
+      const val = String(attrs.collider).toLowerCase().trim();
+      if (val === '' || val === 'true' || val === '1' || val === 'yes' || val === 'on') return true;
+      // compat: viejo "box" => tratar como true
+      if (val === 'box') return true;
       return false;
     }
 
-    function centerCameraOnObject(obj) {
-      const pos = new THREE.Vector3();
-      obj.getWorldPosition(pos);
-      camera.position.set(pos.x, pos.y, pos.z + 5);
-      camera.lookAt(pos);
+    function registerColliderFromAttrs(vnode, obj){
+      const a = vnode.attributes || {};
+      if (!isColliderEnabled(a)) return;
+
+      // Solo primitivas
+      const tag = vnode.tag.toLowerCase();
+      if (!['box','plane','sphere'].includes(tag)) return;
+
+      let computeHalf;
+      if (tag==='box'){
+        computeHalf = ()=>{
+          const sx=obj.scale.x, sy=obj.scale.y, sz=obj.scale.z;
+          const w=parseFloat(a.width||1)*sx, h=parseFloat(a.height||1)*sy, d=parseFloat(a.depth||1)*sz;
+          return new THREE.Vector3(w/2, h/2, d/2);
+        };
+      } else if (tag==='plane'){
+        // Plane horizontal (XZ). Grosor configurable (por defecto 0.1)
+        computeHalf = ()=>{
+          const sx=obj.scale.x, sy=obj.scale.y, sz=obj.scale.z;
+          const w=parseFloat(a.width||5)*sx, d=parseFloat(a.height||5)*sz;
+          const thick=parseFloat(a.thickness ?? 0.1)*sy;
+          return new THREE.Vector3(w/2, thick/2, d/2);
+        };
+      } else if (tag==='sphere'){
+        computeHalf = ()=>{
+          const s=obj.scale.x; // asumimos uniforme
+          const r=parseFloat(a.radius||0.5)*s;
+          return new THREE.Vector3(r, r, r);
+        };
+      }
+
+      const handle = {
+        object: obj,
+        vnode,
+        min: new THREE.Vector3(),
+        max: new THREE.Vector3(),
+        half: new THREE.Vector3(),
+        // recomputa half a partir de attrs y escala actual
+        recalcHalf(){
+          this.half.copy(computeHalf());
+        },
+        __id: Math.random().toString(36).slice(2)
+      };
+      handle.recalcHalf();
+
+      // priming inicial
+      const center = obj.getWorldPosition(new THREE.Vector3());
+      handle.min.set(center.x - handle.half.x, center.y - handle.half.y, center.z - handle.half.z);
+      handle.max.set(center.x + handle.half.x, center.y + handle.half.y, center.z + handle.half.z);
+
+      staticColliders.push(handle);
+      return handle;
     }
 
-    let controller1, controller2;
-    let controllerGrip1, controllerGrip2;
+    function buildSceneFromVirtual(vnode, parentObj){
+      let obj; const tag=vnode.tag; const a=vnode.attributes||{};
+      const classList=(a.class||'').split(/\s+/).filter(Boolean);
 
-    // ========== 6) Three.js Setup ==========
-    const canvas = document.getElementById('canvas');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true;
-    renderer.xr.setReferenceSpaceType('local-floor');
+      if (tag==='group' || tag==='space') { obj=new THREE.Object3D(); }
+      else if (tag==='model') { obj=new THREE.Object3D(); const src=a.src; if(src){ getGLTFScene(src).then(sceneChild=>{ while(obj.children.length>0) obj.remove(obj.children[0]); obj.add(sceneChild); }).catch(err=>console.error('GLTF load error',src,err)); } }
+      else if (tag==='box') { const w=parseFloat(a.width??1), h=parseFloat(a.height??1), d=parseFloat(a.depth??1); const geo=new THREE.BoxGeometry(w,h,d); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
+      else if (tag==='sphere'){ const r=parseFloat(a.radius??0.5), ws=parseInt(a.widthSegments??16), hs=parseInt(a.heightSegments??12); const geo=new THREE.SphereGeometry(r,ws,hs); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
+      else if (tag==='plane'){ const w=parseFloat(a.width??5), h=parseFloat(a.height??5); const geo=new THREE.PlaneGeometry(w,h); const mesh=new THREE.Mesh(geo, getDefaultMaterial(a)); mesh.rotation.x=-Math.PI/2; obj=mesh; }
+      else if (tag==='light'){ const type=(a.type||'ambient').toLowerCase(); const color=new THREE.Color(a.color||'#ffffff'); const intensity=parseFloat(a.intensity??1); if (type==='ambient') obj=new THREE.AmbientLight(color,intensity); else if(type==='directional'){ obj=new THREE.DirectionalLight(color,intensity); obj.position.set(5,10,5); } else if(type==='point'){ obj=new THREE.PointLight(color,intensity, parseFloat(a.distance??0)); } else if(type==='hemisphere'){ obj=new THREE.HemisphereLight(0xffffff,0x444444,intensity); } else { obj=new THREE.Object3D(); } }
+      else if (tag==='audio'){ obj=new THREE.Object3D(); }
+      else { obj=new THREE.Object3D(); }
 
-    // VR Button
-    const vrButton = VRButton.createButton(renderer);
-    document.getElementById('toolbar').appendChild(vrButton);
+      // Visibilidad declarativa
+      if (String(a.visible).toLowerCase()==='false') obj.visible = false;
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x202020);
+      obj.userData.key = vnode.key; parentObj.add(obj); nodeKeyToObject.set(vnode.key, obj);
 
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 5, 20);
+      vnode.children.forEach(child=>{ buildSceneFromVirtual(child, obj); });
 
-    window.addEventListener('resize', onWindowResize);
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      // Behaviors por clase (genéricos)
+      const behaviors = new Set(classList);
+      if (behaviors.has('spin')) userUpdateFunctions.add((dt)=>{ vnode.attributes.ry = (parseFloat(vnode.attributes.ry||0)+dt)% (Math.PI*2); });
+      if (behaviors.has('pulse')) { let t=0; const amp=parseFloat(a.amp||0.6), speed=parseFloat(a.speed||1.5), y0=parseFloat(a.y||0); userUpdateFunctions.add(dt=>{ t+=dt*speed; vnode.attributes.y = (y0 + Math.sin(t)*amp).toFixed(5); }); }
+
+      // Registrar colliders estáticos a partir de atributos (nuevo booleano)
+      registerColliderFromAttrs(vnode, obj);
     }
-    renderer.xr.addEventListener('sessionstart', () => { camera.position.set(0, 1.6, 3); });
 
-    // Helpers
-    scene.add(gridHelper);
-    scene.add(axesHelper);
-
-    // Skybox (por defecto)
-    function getTexturesFromAtlasFile(atlasImgUrl, tilesNum) {
-      const textures = [];
-      for (let i = 0; i < tilesNum; i++) textures[i] = new THREE.Texture();
-      const loader = new THREE.ImageLoader();
-      loader.load(atlasImgUrl, function (imageObj) {
-        let canvas, context; const tileWidth = imageObj.height;
-        for (let i = 0; i < textures.length; i++) {
-          canvas = document.createElement('canvas'); context = canvas.getContext('2d');
-          canvas.height = tileWidth; canvas.width = tileWidth;
-          context.drawImage(imageObj, tileWidth * i, 0, tileWidth, tileWidth, 0, 0, tileWidth, tileWidth);
-          textures[i].colorSpace = THREE.SRGBColorSpace; textures[i].image = canvas; textures[i].needsUpdate = true;
-        }
-      });
-      return textures;
+    function applyTransformsRecursively(vnode){
+      const obj=nodeKeyToObject.get(vnode.key); if(obj){ const attrs=vnode.attributes||{};
+        // Escala
+        if (attrs.scale!==undefined){ const s=parseFloat(attrs.scale); if(!isNaN(s)) obj.scale.set(s,s,s); }
+        // Posición: componentes provistos
+        if (attrs.x!==undefined) obj.position.x = parseFloat(attrs.x)||0;
+        if (attrs.y!==undefined) obj.position.y = parseFloat(attrs.y)||0;
+        if (attrs.z!==undefined) obj.position.z = parseFloat(attrs.z)||0;
+        // Rotación: preserva defaults si no se provee
+        if (attrs.rx!==undefined) obj.rotation.x = parseFloat(attrs.rx)||0;
+        if (attrs.ry!==undefined) obj.rotation.y = parseFloat(attrs.ry)||0;
+        if (attrs.rz!==undefined) obj.rotation.z = parseFloat(attrs.rz)||0;
+      }
+      vnode.children.forEach(ch=>applyTransformsRecursively(ch));
     }
-    const geometrySky = new THREE.BoxGeometry(100, 100, 100); geometrySky.scale(1, 1, -1);
-    const texturesSky = getTexturesFromAtlasFile('https://threejs.org/examples/textures/cube/sun_temple_stripe_stereo.jpg', 12);
-    const materialsSky = []; for (let i = 0; i < 6; i++) materialsSky.push(new THREE.MeshBasicMaterial({ map: texturesSky[i] }));
-    const skyBox = new THREE.Mesh(geometrySky, materialsSky); scene.add(skyBox);
 
-    // Controladores VR
-    function buildController(data) {
-      let geometry, material;
-      if (data.targetRayMode === 'tracked-pointer') {
-        geometry = new THREE.BufferGeometry().setFromPoints([ new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1) ]);
-        material = new THREE.LineBasicMaterial({ linewidth: 2, transparent: true, opacity: 0.8 });
-        return new THREE.Line(geometry, material);
-      } else if (data.targetRayMode === 'gaze') {
-        geometry = new THREE.RingGeometry(0.02, 0.04, 32).translate(0, 0, -1);
-        material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-        return new THREE.Mesh(geometry, material);
+    // ----------------- DevTools -----------------
+    function updateDevTool(){ const treeView=document.getElementById('treeView'); treeView.innerHTML=''; if(!virtualDOM) return; const domTree=buildVirtualTreeHTML(virtualDOM); if(domTree) treeView.appendChild(domTree); }
+    function buildVirtualTreeHTML(vnode){ const li=document.createElement('li'); const header=document.createElement('div'); header.style.display='flex'; header.style.flexWrap='wrap'; header.style.alignItems='center'; const tagSpan=document.createElement('span'); tagSpan.textContent=`<${vnode.tag}>`; header.appendChild(tagSpan); for(const an in vnode.attributes){ const av=vnode.attributes[an]; const label=document.createElement('span'); label.classList.add('attrLabel'); label.textContent=` ${an}="`; const inp=document.createElement('span'); inp.classList.add('attrInput'); inp.contentEditable=true; inp.textContent=av; inp.addEventListener('blur',()=>{ vnode.attributes[an]=inp.textContent.trim(); scheduleDevToolUpdate(); }); label.appendChild(inp); const q=document.createElement('span'); q.textContent='"'; label.appendChild(q); header.appendChild(label); } const centerBtn=document.createElement('button'); centerBtn.textContent='Centrar'; centerBtn.classList.add('actionBtn'); centerBtn.addEventListener('click',e=>{ e.stopPropagation(); scene.traverse(obj=>{ if(obj.userData && obj.userData.key===vnode.key) centerCameraOnObject(obj); }); }); header.appendChild(centerBtn); const removeBtn=document.createElement('button'); removeBtn.textContent='Eliminar'; removeBtn.classList.add('actionBtn'); removeBtn.addEventListener('click',e=>{ e.stopPropagation(); removeNodeByKey(virtualDOM, vnode.key); const obj=nodeKeyToObject.get(vnode.key); if(obj&&obj.parent) obj.parent.remove(obj); nodeKeyToObject.delete(vnode.key); scheduleDevToolUpdate(); }); header.appendChild(removeBtn); li.appendChild(header); if(vnode.children.length>0){ const ul=document.createElement('ul'); vnode.children.forEach(ch=>{ const c=buildVirtualTreeHTML(ch); if(c) ul.appendChild(c); }); li.appendChild(ul); } return li; }
+    function removeNodeByKey(rootVNode,key){ if(!rootVNode||!rootVNode.children) return false; for(let i=0;i<rootVNode.children.length;i++){ if(rootVNode.children[i].key===key){ rootVNode.children.splice(i,1); return true; } else { if(removeNodeByKey(rootVNode.children[i],key)) return true; } } return false; }
+    function centerCameraOnObject(obj){ const pos=new THREE.Vector3(); obj.getWorldPosition(pos); player.position.set(pos.x, player.position.y, pos.z+5); yaw = Math.atan2((player.position.x - pos.x), (player.position.z - pos.z)); camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); }
+
+    // ----------------- Render/Scene Setup -----------------
+    const canvas=document.getElementById('canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+    renderer.setPixelRatio(window.devicePixelRatio); renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled=true; renderer.xr.setReferenceSpaceType('local-floor');
+    const vrButton=VRButton.createButton(renderer); document.getElementById('toolbar').appendChild(vrButton);
+
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x202020);
+
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
+
+    window.addEventListener('resize', ()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); dirLight.position.set(4,10,6);
+    scene.add(ambientLight); scene.add(dirLight); scene.add(gridHelper); scene.add(axesHelper);
+
+    // ----------------- Audio helpers (compat) -----------------
+    const audioListener = new THREE.AudioListener();
+    camera.add(audioListener);
+    const audioLoader = new THREE.AudioLoader();
+    function playSoundOneShot(url, volume=0.7){ const s = new THREE.Audio(audioListener); audioLoader.load(url, buffer=>{ s.setBuffer(buffer); s.setVolume(volume); s.play(); }); return s; }
+    function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){
+      const a = new THREE.PositionalAudio(audioListener); audioLoader.load(url, buffer=>{ a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); }); obj.add(a); return a;
+    }
+
+    // ----------------- Controlador de personaje (con gravedad/salto) -----------------
+    // Unidades por segundo
+    const player = {
+      position: new THREE.Vector3(0,1.7,6),
+      radius: 0.4,
+      eyeHeight: 1.7,
+      speed: 3.5,
+      sprintMult: 1.6,
+      gravity: 18.0,
+      jumpSpeed: 6.0,
+      velY: 0,
+      grounded: false
+    };
+    camera.position.copy(player.position);
+
+    const input = { keys:{}, pointerLocked:false, isXR:false };
+    const controllerState = { update: fpsCharacterController, enabled:true };
+
+    let yaw=0, pitch=0; const mouseSensitivity=0.0022;
+
+    document.addEventListener('keydown', e=>{ input.keys[e.code]=true; emit('key:down', e); if(e.code==='KeyR') loadHSML(); });
+    document.addEventListener('keyup',   e=>{ input.keys[e.code]=false; emit('key:up', e); });
+
+    function lockPointer(){ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); }
+    canvas.addEventListener('mousedown', ()=>{ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); emit('input:use', { source:'mouse' }); });
+    canvas.addEventListener('touchstart', ()=>{ emit('input:use', { source:'touch' }); });
+
+    document.addEventListener('pointerlockchange', ()=>{ input.pointerLocked = (document.pointerLockElement===canvas); document.getElementById('toggleFreeCameraBtn').textContent = input.pointerLocked ? 'Liberar Mouse' : 'Capturar Mouse'; });
+
+    document.addEventListener('mousemove', e=>{ if(!input.pointerLocked) return; yaw -= e.movementX*mouseSensitivity; pitch -= e.movementY*mouseSensitivity; const maxP=Math.PI/2-0.001; if(pitch>maxP)pitch=maxP; if(pitch<-maxP)pitch=-maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', {yaw,pitch}); });
+
+    // Físicas básicas: colliders estáticos y suelos/techos por AABB
+    const staticColliders = [];
+
+    function addBoxColliderFor(obj, size){
+      const handle = {
+        object: obj,
+        vnode: null,
+        min: new THREE.Vector3(),
+        max: new THREE.Vector3(),
+        half: new THREE.Vector3(size.x/2, size.y/2, size.z/2),
+        recalcHalf(){ /* para API pública: fijo */ },
+        __id: Math.random().toString(36).slice(2)
+      };
+      const center = obj.getWorldPosition(new THREE.Vector3());
+      handle.min.set(center.x - handle.half.x, center.y - handle.half.y, center.z - handle.half.z);
+      handle.max.set(center.x + handle.half.x, center.y + handle.half.y, center.z + handle.half.z);
+      staticColliders.push(handle); 
+      return handle;
+    }
+
+    function updateColliderAABBs(){
+      for(const c of staticColliders){
+        if (typeof c.recalcHalf === 'function') c.recalcHalf();
+        const center = c.object.getWorldPosition(new THREE.Vector3());
+        c.min.set(center.x - c.half.x, center.y - c.half.y, center.z - c.half.z);
+        c.max.set(center.x + c.half.x, center.y + c.half.y, center.z + c.half.z);
+      }
+    }
+
+    function getGroundHeightAt(x,z){ let gy = -Infinity; for(const c of staticColliders){ if(x>=c.min.x && x<=c.max.x && z>=c.min.z && z<=c.max.z){ gy = Math.max(gy, c.max.y); } } return (gy===-Infinity)? 0 : gy; }
+    function getCeilingHeightAt(x,z){ let cy = Infinity; for(const c of staticColliders){ if(x>=c.min.x && x<=c.max.x && z>=c.min.z && z<=c.max.z){ cy = Math.min(cy, c.min.y); } } return cy; }
+
+    function resolveCollisionsXZ(pos, r){
+      let p = pos.clone();
+      for(const c of staticColliders){ const min=c.min, max=c.max; const closestX=Math.max(min.x, Math.min(p.x, max.x)); const closestZ=Math.max(min.z, Math.min(p.z, max.z)); const dx=p.x-closestX, dz=p.z-closestZ; const d2=dx*dx+dz*dz; const rr=r*r; if(d2<rr){ const d=Math.sqrt(Math.max(d2,1e-6)); const nx=dx/d, nz=dz/d; const push = (r - d) + 1e-3; p.x += nx*push; p.z += nz*push; } }
+      return p;
+    }
+
+    function fpsCharacterController(dt){
+      const forward = new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
+      const right   = new THREE.Vector3(1,0,0) .applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
+      let move = new THREE.Vector3();
+      const base = player.speed * ( (input.keys['ShiftLeft']||input.keys['ShiftRight']) ? player.sprintMult : 1 );
+      if(input.keys['KeyW']) move.add(forward);
+      if(input.keys['KeyS']) move.addScaledVector(forward,-1);
+      if(input.keys['KeyA']) move.addScaledVector(right,-1);
+      if(input.keys['KeyD']) move.add(right);
+      if (move.lengthSq()>1e-6) move.normalize().multiplyScalar(base*dt);
+
+      // Horizontal + colisiones XZ
+      let desired = player.position.clone().add(move);
+      desired = resolveCollisionsXZ(desired, player.radius);
+
+      // Salto/gravedad (pie = y - eyeHeight)
+      const groundY = getGroundHeightAt(desired.x, desired.z);
+      if (input.keys['Space'] && player.grounded) player.velY = player.jumpSpeed;
+      player.velY -= player.gravity * dt;
+      let nextY = player.position.y + player.velY * dt;
+
+      if (nextY - player.eyeHeight <= groundY){
+        nextY = groundY + player.eyeHeight;
+        player.velY = 0;
+        player.grounded = true;
+      } else {
+        player.grounded = false;
+      }
+
+      const ceil = getCeilingHeightAt(desired.x, desired.z);
+      if (ceil < Infinity && nextY >= ceil - 1e-3){
+        nextY = Math.min(nextY, ceil - 1e-3);
+        if (player.velY>0) player.velY = 0;
+      }
+
+      player.position.set(desired.x, nextY, desired.z);
+      camera.position.copy(player.position);
+    }
+
+    // ----------------- Raycast / "usar" (desktop + VR) -----------------
+    const raycaster = new THREE.Raycaster();
+    function pickCenter(far=100){ raycaster.setFromCamera({x:0,y:0}, camera); const hits=raycaster.intersectObjects(scene.children,true); if(!hits||!hits.length) return null; const h=hits[0]; return { object:h.object, point:h.point, distance:h.distance } }
+
+    // VR controllers: línea/ray y evento select => input:use
+    const controllerModelFactory = new XRControllerModelFactory();
+    const tempMatrix = new THREE.Matrix4();
+    function buildXRRay(data){
+      if (data.targetRayMode === 'tracked-pointer'){
+        const geom = new THREE.BufferGeometry().setFromPoints([ new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1) ]);
+        const mat = new THREE.LineBasicMaterial({ transparent:true, opacity:0.8 });
+        return new THREE.Line(geom, mat);
+      } else if (data.targetRayMode === 'gaze'){
+        const geom = new THREE.RingGeometry(0.02, 0.04, 32).translate(0,0,-1);
+        const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent:true, opacity:0.5 });
+        return new THREE.Mesh(geom, mat);
       }
       return new THREE.Group();
     }
-
-    const controllerModelFactory = new XRControllerModelFactory();
-
-    controller1 = renderer.xr.getController(0);
-    controller1.addEventListener('selectstart', onSelectStart);
-    controller1.addEventListener('selectend', onSelectEnd);
-    controller1.addEventListener('connected', function (event) { this.add(buildController(event.data)); });
-    controller1.addEventListener('disconnected', function () { this.remove(this.children[0]); });
-    scene.add(controller1);
-
-    controller2 = renderer.xr.getController(1);
-    controller2.addEventListener('selectstart', onSelectStart);
-    controller2.addEventListener('selectend', onSelectEnd);
-    controller2.addEventListener('connected', function (event) { this.add(buildController(event.data)); });
-    controller2.addEventListener('disconnected', function () { this.remove(this.children[0]); });
-    scene.add(controller2);
-
-    controllerGrip1 = renderer.xr.getControllerGrip(0);
-    controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
-    scene.add(controllerGrip1);
-
-    controllerGrip2 = renderer.xr.getControllerGrip(1);
-    controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
-    scene.add(controllerGrip2);
-
-    function onSelectStart() { /* hooks para interacciones */ }
-    function onSelectEnd() { /* hooks para interacciones */ }
-
-    // ## Iluminacion
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
-    if (lightingEnabled) scene.add(ambientLight);
-
-    // ========== 7) Render Loop y FPS/Mem ==========
-    renderer.setAnimationLoop(animate);
-
-    function animate() {
-      const now = performance.now();
-      const dt = (now - lastFrameTS) / 1000;
-      lastFrameTS = now;
-
-      userUpdateFunctions.forEach(fn => { try { fn(dt); } catch (e) { console.error('Updater error', e); } });
-      if (virtualDOM) applyTransformsRecursively(virtualDOM);
-
-      // Stats
-      frames++;
-      if (now - lastTimeStat >= 1000) {
-        currentFPS = frames * 1000 / (now - lastTimeStat);
-        frames = 0; lastTimeStat = now;
-        document.getElementById('fpsValue').textContent = currentFPS.toFixed(1);
-        if (performance.memory) {
-          const used = (performance.memory.usedJSHeapSize / 1048576).toFixed(1);
-          const total = (performance.memory.totalJSHeapSize / 1048576).toFixed(1);
-          document.getElementById('ramValue').textContent = `${used} / ${total} MB`;
-        }
-      }
-
-      maybeUpdateDevTool();
-      renderer.render(scene, camera);
+    function pickFromController(ctrl, far=100){
+      tempMatrix.identity().extractRotation(ctrl.matrixWorld);
+      raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
+      raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
+      const hits = raycaster.intersectObjects(scene.children,true);
+      if (hits && hits.length) { const h=hits[0]; return { object:h.object, point:h.point, distance:h.distance } }
+      return null;
     }
 
-    // ========== 8) Cámara Libre (WASD + pointer lock) ==========
-    const keys = {};
-    document.addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyR') loadHSML(); });
-    document.addEventListener('keyup',   e => { keys[e.code] = false; });
-    const moveSpeed = 0.2, rotationSpeed = 0.002;
-
-    document.addEventListener('mousemove', e => {
-      if (document.pointerLockElement === canvas) {
-        camera.rotation.y -= e.movementX * rotationSpeed;
-        camera.rotation.x -= e.movementY * rotationSpeed;
-        camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
-      }
+    const xrCtrl1 = renderer.xr.getController(0);
+    const xrCtrl2 = renderer.xr.getController(1);
+    [xrCtrl1, xrCtrl2].forEach((ctrl)=>{
+      ctrl.addEventListener('connected', (e)=>{ ctrl.add(buildXRRay(e.data)); });
+      ctrl.addEventListener('disconnected', ()=>{ while(ctrl.children.length) ctrl.remove(ctrl.children[0]); });
+      ctrl.addEventListener('selectstart', ()=>{ emit('input:use', { source:'vr' }); });
+      scene.add(ctrl);
     });
-    function updateCameraLoop() {
-      const forward = new THREE.Vector3();
-      camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
-      const right = new THREE.Vector3(); right.crossVectors(camera.up, forward).normalize();
-      if (keys['KeyW']) camera.position.addScaledVector(forward, moveSpeed);
-      if (keys['KeyS']) camera.position.addScaledVector(forward, -moveSpeed);
-      if (keys['KeyA']) camera.position.addScaledVector(right, moveSpeed);
-      if (keys['KeyD']) camera.position.addScaledVector(right, -moveSpeed);
-      requestAnimationFrame(updateCameraLoop);
-    }
-    updateCameraLoop();
+    const grip1 = renderer.xr.getControllerGrip(0); grip1.add(controllerModelFactory.createControllerModel(grip1)); scene.add(grip1);
+    const grip2 = renderer.xr.getControllerGrip(1); grip2.add(controllerModelFactory.createControllerModel(grip2)); scene.add(grip2);
 
-    // ========== 9) Mini-Framework API (dimension) ==========
+    renderer.xr.addEventListener('sessionstart', ()=>{ input.isXR = true; });
+    renderer.xr.addEventListener('sessionend',   ()=>{ input.isXR = false; });
+
+    // ----------------- Loop principal -----------------
+    renderer.setAnimationLoop(animate);
+    function animate(){ 
+      const now=performance.now(); 
+      const dt=(now-lastFrameTS)/1000; 
+      lastFrameTS=now; 
+
+      userUpdateFunctions.forEach(fn=>{ try{ fn(dt); }catch(e){ console.error('update error', e); } });
+
+      if(virtualDOM) applyTransformsRecursively(virtualDOM);
+
+      // Alinear colliders con la pose real (y half dinámico)
+      updateColliderAABBs();
+
+      if(controllerState.enabled && controllerState.update) controllerState.update(dt);
+
+      updateStats(now); 
+      maybeUpdateDevTool(); 
+      renderer.render(scene,camera); 
+    }
+
+    function updateStats(now){ frames++; if(now-lastTimeStat>=1000){ currentFPS = frames*1000/(now-lastTimeStat); frames=0; lastTimeStat=now; document.getElementById('fpsValue').textContent=currentFPS.toFixed(1); if(performance.memory){ const used=(performance.memory.usedJSHeapSize/1048576).toFixed(1); const total=(performance.memory.totalJSHeapSize/1048576).toFixed(1); document.getElementById('ramValue').textContent=`${used} / ${total} MB`; } } }
+
+    // ----------------- API pública (dimension) -----------------
     const dimension = {
-      createElement(tagName) { return createProxiedNode(tagName); },
-      create(tagName, attrs = {}, children = []) {
-        const node = createProxiedNode(tagName);
-        Object.entries(attrs).forEach(([k,v]) => node.setAttribute(k, v));
-        children.forEach(ch => node.appendChild(ch));
-        return node;
+      // DOM virtual
+      createElement: (tag)=>createProxiedNode(tag),
+      create(tag, attrs={}, children=[]) { const node=createProxiedNode(tag); Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,v)); children.forEach(ch=>node.appendChild(ch)); return node; },
+      appendChild(child){ if(!virtualDOM){ console.warn('No virtualDOM'); return; } virtualDOM.children.push(child); buildSceneFromVirtual(child, scene); scheduleDevToolUpdate(); },
+      remove(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return; removeNodeByKey(virtualDOM, v.key); const obj=nodeKeyToObject.get(v.key); if(obj&&obj.parent) obj.parent.remove(obj); nodeKeyToObject.delete(v.key); scheduleDevToolUpdate(); },
+      find(selector){ if(!selector) return []; if(selector.startsWith('#')){ const v=idToVNode.get(selector.slice(1)); return v ? [createProxiedNode(v)] : []; } if(selector.startsWith('.')){ const set=classToVNodes.get(selector.slice(1)); return set ? Array.from(set).map(v=>createProxiedNode(v)) : []; } const out=[]; (function walk(v){ if(!v) return; if(v.tag===selector) out.push(createProxiedNode(v)); (v.children||[]).forEach(walk); })(virtualDOM); return out; },
+      getObjectFor(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return null; return nodeKeyToObject.get(v.key)||null; },
+      behavior(name,factory){ behaviorRegistry.set(name, factory); },
+      refresh(){ scheduleDevToolUpdate(); },
+      toHSML(){ return serializeHSML(virtualDOM); },
+      importHSML(hsml){ importHSMLFromString(hsml); },
+
+      // Señales
+      on, off, emit,
+
+      // Loop
+      loop: { onUpdate(fn){ userUpdateFunctions.add(fn); return ()=>userUpdateFunctions.delete(fn); }, offUpdate(fn){ userUpdateFunctions.delete(fn); } },
+
+      // Entrada
+      input: {
+        isDown(code){ return !!input.keys[code]; },
+        pointerLocked: ()=>input.pointerLocked,
+        lockPointer(){ if(document.pointerLockElement!==canvas) canvas.requestPointerLock(); },
+        unlockPointer(){ if(document.pointerLockElement===canvas) document.exitPointerLock(); },
+        onUse(cb){ on('input:use', cb); return ()=>off('input:use', cb); }
       },
-      appendChild(childProxy) {
-        if (!virtualDOM) { console.warn('No hay virtualDOM aún.'); return; }
-        virtualDOM.children.push(childProxy);
-        buildSceneFromVirtual(childProxy, scene);
-        scheduleDevToolUpdate();
+
+      // Cámara/Player
+      camera: {
+        teleport(x,y,z){ player.position.set(x,y??player.eyeHeight,z); camera.position.copy(player.position); },
+        setYawPitch(yawRad,pitchRad){ yaw=yawRad; pitch=pitchRad; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); },
+        getYawPitch(){ return { yaw, pitch }; },
+        getPosition(){ return camera.position.clone(); }
       },
-      remove(nodeOrId) {
-        let v = (typeof nodeOrId === 'string') ? idToVNode.get(nodeOrId) : nodeOrId;
-        if (!v) return;
-        removeNodeByKey(virtualDOM, v.key);
-        const obj = nodeKeyToObject.get(v.key);
-        if (obj && obj.parent) obj.parent.remove(obj);
-        nodeKeyToObject.delete(v.key);
-        scheduleDevToolUpdate();
+      controller: {
+        enable(v){ controllerState.enabled=!!v; },
+        set(fn){ controllerState.update = fn; controllerState.enabled = true; }
       },
-      find(selector) {
-        if (!selector) return [];
-        if (selector.startsWith('#')) {
-          const v = idToVNode.get(selector.slice(1));
-          return v ? [createProxiedNode(v)] : [];
-        }
-        if (selector.startsWith('.')) {
-          const set = classToVNodes.get(selector.slice(1));
-          return set ? Array.from(set).map(v => createProxiedNode(v)) : [];
-        }
-        // tag
-        const out = [];
-        (function walk(v){ if (!v) return; if (v.tag === selector) out.push(createProxiedNode(v)); (v.children||[]).forEach(walk); })(virtualDOM);
-        return out;
+
+      // Física / Consultas
+      physics: {
+        addBoxCollider: addBoxColliderFor,
+        clearColliders,
+        resolvePlayerXZ: (desired, r)=>resolveCollisionsXZ(desired, r??player.radius),
+        getGroundHeightAt,
+        pickCenter: (far)=>pickCenter(far),
+        pickFromController: (i=0, far=100)=>{ const ctrl=[xrCtrl1,xrCtrl2][i]; if(!ctrl) return null; return pickFromController(ctrl, far); }
       },
-      behavior(name, factory) { behaviorRegistry.set(name, factory); },
-      refresh() { scheduleDevToolUpdate(); },
-      toHSML() { return serializeHSML(virtualDOM); },
-      importHSML(hsmlString) { importHSMLFromString(hsmlString); }
+
+      // Audio
+      audio: { play: playSoundOneShot, attachPositional: attachPositionalAudio },
+
+      // Utils
+      math: MATH
     };
 
-    function setUpdate(fn) { userUpdateFunctions.push(fn); }
+    const behaviorRegistry = new Map();
 
-    function serializeHSML(vnode) {
-      if (!vnode) return '';
-      const attrs = Object.entries(vnode.attributes).map(([k,v]) => `${k}="${String(v)}"`).join(' ');
-      const open = attrs ? `<${vnode.tag} ${attrs}>` : `<${vnode.tag}>`;
-      if (!vnode.children || vnode.children.length === 0) return `${open}</${vnode.tag}>`;
-      return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`;
-    }
+    function setUpdate(fn){ userUpdateFunctions.add(fn); }
 
-    // ========== 10) Cargar HSML + Scripts en Sandbox ==========
-    async function loadHSML() {
-      const input = document.getElementById('urlInput').value.trim();
-      let hsmlString = '';
-      if (input.startsWith('<')) { // HSML inline pegado en el input
-        hsmlString = input;
-      } else {
-        try {
-          const res = await fetch(input);
-          hsmlString = await res.text();
-        } catch (err) {
-          console.warn('No se pudo cargar la URL. Usando demo HSML.');
-          hsmlString = DEFAULT_HSML;
-        }
-      }
-      importHSMLFromString(hsmlString);
-    }
+    function serializeHSML(vnode){ if(!vnode) return ''; const attrs=Object.entries(vnode.attributes).map(([k,v])=>`${k}="${String(v)}"`).join(' '); const open=attrs?`<${vnode.tag} ${attrs}>`:`<${vnode.tag}>`; if(!vnode.children||vnode.children.length===0) return `${open}</${vnode.tag}>`; return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`; }
 
-    function importHSMLFromString(hsmlString) {
-      // Reset scene (conserva sky/grid/axes)
-      scene.children.slice().forEach(obj => { if (obj !== skyBox && obj !== gridHelper && obj !== axesHelper && obj.type !== 'AmbientLight') scene.remove(obj); });
-      nodeKeyToObject.clear();
-      VirtualNode.nextKey = 1;
-      userUpdateFunctions.length = 0;
+    // ----------------- Carga HSML -----------------
+    async function loadHSML(){ const inputEl=document.getElementById('urlInput'); const input=inputEl?inputEl.value.trim():''; let hsml=''; const hashLevel=new URLSearchParams(location.hash.replace('#','')).get('level'); if(!input && hashLevel){ try{ const res=await fetch(hashLevel); hsml=await res.text(); }catch(e){ console.warn('No se pudo cargar hash level, usando demo'); hsml=DEFAULT_HSML; } } else if (input && input.startsWith('<')){ hsml=input; } else if (input){ try{ const res=await fetch(input); hsml=await res.text(); }catch(e){ console.warn('No se pudo cargar URL, usando demo'); hsml=DEFAULT_HSML; } } else { hsml=DEFAULT_HSML; } importHSMLFromString(hsml); }
 
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(hsmlString, 'text/xml');
-      const spaceXML = xmlDoc.getElementsByTagName('space')[0];
-      if (!spaceXML) { console.error('No se encontró <space> en el HSML'); return; }
+    function importHSMLFromString(hsml){
+      // Reset escena (mantén luces y helpers)
+      scene.children.slice().forEach(obj=>{ const keep = (obj===gridHelper)||(obj===axesHelper)||(obj===ambientLight)||(obj===dirLight); if(!keep) scene.remove(obj); });
+      nodeKeyToObject.clear(); VirtualNode.nextKey=1; userUpdateFunctions.clear(); clearColliders();
 
-      virtualDOM = parseHSML(spaceXML);
-      reindexVirtualDOM();
-      buildSceneFromVirtual(virtualDOM, scene);
-      scheduleDevToolUpdate();
+      const parser=new DOMParser(); const xml=parser.parseFromString(hsml, 'text/xml'); const spaceXML=xml.getElementsByTagName('space')[0]; if(!spaceXML){ console.error('No <space> root'); return; }
+      virtualDOM = parseHSML(spaceXML); reindexVirtualDOM(); buildSceneFromVirtual(virtualDOM, scene); scheduleDevToolUpdate();
 
       // Ejecutar scripts
       const scriptTags = spaceXML.getElementsByTagName('script');
-      for (let i = 0; i < scriptTags.length; i++) {
-        const scriptNode = scriptTags[i];
-        const scriptURL = scriptNode.getAttribute('src');
-        const inlineCode = scriptNode.textContent?.trim();
-        if (scriptURL) {
-          fetch(scriptURL).then(r => r.text()).then(code => runSandbox(code)).catch(err => console.error('Error al cargar script:', scriptURL, err));
-        } else if (inlineCode) {
-          runSandbox(inlineCode);
-        }
+      for (let i=0;i<scriptTags.length;i++){ const node=scriptTags[i]; const src=node.getAttribute('src'); const inline=node.textContent?.trim(); if(src){ fetch(src).then(r=>r.text()).then(code=>runSandbox(code)).catch(err=>console.error('Script load error',src,err)); } else if(inline){ runSandbox(inline); } }
+
+      // Aplicar transforms y alinear colliders antes del primer frame
+      applyTransformsRecursively(virtualDOM);
+      updateColliderAABBs();
+
+      // Reset cámara por encima del suelo
+      player.position.set(0, player.eyeHeight, 6);
+      const gy = getGroundHeightAt(player.position.x, player.position.z);
+      if (player.position.y - player.eyeHeight < gy) {
+        player.position.y = gy + player.eyeHeight;
       }
+      player.velY=0; player.grounded=false; 
+      camera.position.copy(player.position); 
+      yaw=0; pitch=0; 
+      camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
     }
 
-    function runSandbox(code) {
-      // Sandbox muy simple: expone solo APIs necesarias
-      const sandboxedFn = new Function('dimension','setUpdate','setTimeout','setInterval', code);
-      sandboxedFn(dimension, setUpdate, setTimeout, setInterval);
-    }
+    function runSandbox(code){ const fn=new Function('dimension','setUpdate','setTimeout','setInterval', code); fn(dimension, setUpdate, setTimeout, setInterval); }
 
-    // ========== 11) Eventos de UI ==========
+    // ----------------- UI Eventos -----------------
     document.getElementById('loadButton').addEventListener('click', loadHSML);
     document.getElementById('reloadBtn').addEventListener('click', loadHSML);
-    document.getElementById('exportBtn').addEventListener('click', () => {
-      const text = dimension.toHSML();
-      const blob = new Blob([text], { type: 'application/xml' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'scene.hsml'; a.click();
-      URL.revokeObjectURL(url);
-    });
+    document.getElementById('exportBtn').addEventListener('click', ()=>{ const text=dimension.toHSML(); const blob=new Blob([text], {type:'application/xml'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='scene.hsml'; a.click(); URL.revokeObjectURL(url); });
+    const devPanel=document.getElementById('devPanel'); const toggleDevPanelBtn=document.getElementById('toggleDevPanel'); toggleDevPanelBtn.addEventListener('click',()=>{ if(devPanel.style.display==='none' || devPanel.style.display===''){ devPanel.style.display='block'; } else { devPanel.style.display='none'; } });
+    const inspectorView=document.getElementById('inspectorView'); const statusView=document.getElementById('statusView');
+    document.getElementById('inspectorTabBtn').addEventListener('click',()=>{ inspectorView.style.display='block'; statusView.style.display='none'; });
+    document.getElementById('statusTabBtn').addEventListener('click',()=>{ inspectorView.style.display='none'; statusView.style.display='block'; });
+    document.getElementById('toggleFreeCameraBtn').addEventListener('click',()=>{ if(document.pointerLockElement!==canvas) canvas.requestPointerLock(); else document.exitPointerLock(); });
+    document.getElementById('toggleLightingBtn').addEventListener('click',()=>{ lightingEnabled=!lightingEnabled; if(lightingEnabled){ if(!scene.children.includes(ambientLight)) scene.add(ambientLight); if(!scene.children.includes(dirLight)) scene.add(dirLight); } else { scene.remove(ambientLight); scene.remove(dirLight); } });
+    document.getElementById('toggleGridBtn').addEventListener('click',()=>{ gridHelper.visible=!gridHelper.visible; axesHelper.visible=gridHelper.visible; });
+    document.getElementById('urlInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') loadHSML(); });
 
-    const devPanel = document.getElementById('devPanel');
-    const toggleDevPanelBtn = document.getElementById('toggleDevPanel');
-    toggleDevPanelBtn.addEventListener('click', () => {
-      if (devPanel.style.display === 'none' || devPanel.style.display === '') {
-        devPanel.style.display = 'block';
-        toggleDevPanelBtn.textContent = 'Ocultar DevTools';
-      } else {
-        devPanel.style.display = 'none';
-        toggleDevPanelBtn.textContent = 'Mostrar DevTools';
-      }
-    });
-
-    const inspectorView = document.getElementById('inspectorView');
-    const statusView = document.getElementById('statusView');
-    document.getElementById('inspectorTabBtn').addEventListener('click', () => { inspectorView.style.display = 'block'; statusView.style.display = 'none'; });
-    document.getElementById('statusTabBtn').addEventListener('click', () => { inspectorView.style.display = 'none'; statusView.style.display = 'block'; });
-
-    const toggleFreeCameraBtn = document.getElementById('toggleFreeCameraBtn');
-    toggleFreeCameraBtn.addEventListener('click', () => {
-      if (document.pointerLockElement !== canvas) { canvas.requestPointerLock(); toggleFreeCameraBtn.textContent = 'Desactivar Cámara Libre'; }
-      else { document.exitPointerLock(); toggleFreeCameraBtn.textContent = 'Activar Cámara Libre'; }
-    });
-
-    const toggleLightingBtn = document.getElementById('toggleLightingBtn');
-    toggleLightingBtn.addEventListener('click', () => {
-      lightingEnabled = !lightingEnabled;
-      if (lightingEnabled) { scene.add(ambientLight); toggleLightingBtn.textContent = 'Desactivar Iluminación'; }
-      else { scene.remove(ambientLight); toggleLightingBtn.textContent = 'Activar Iluminación'; }
-    });
-    toggleLightingBtn.textContent = lightingEnabled ? 'Desactivar Iluminación' : 'Activar Iluminación';
-
-    const toggleGridBtn = document.getElementById('toggleGridBtn');
-    toggleGridBtn.addEventListener('click', () => {
-      gridHelper.visible = !gridHelper.visible; axesHelper.visible = gridHelper.visible; toggleGridBtn.textContent = gridHelper.visible ? 'Ocultar Grid' : 'Mostrar Grid';
-    });
-
-    // Enter para cargar
-    document.getElementById('urlInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadHSML(); });
-
-    // ====== HSML de ejemplo por defecto ======
+    // ----------------- Demo por defecto mínima -----------------
     const DEFAULT_HSML = `
 <space>
-  <light type="ambient" intensity="2" />
-  <group id="sceneRoot">
-    <plane id="ground" width="20" height="20" color="#404040" y="0" />
-    <box id="crate" width="1" height="1" depth="1" color="#4db6ac" x="0" y="0.5" z="0" class="spin" />
-    <sphere id="ball" radius="0.5" color="#ffcc00" x="2" y="1" z="0" class="bob" />
-    <!-- Ejemplo de modelo (comentar si no hay CORS): -->
-    <!-- <model id="bot" src="https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb" scale="1" x="-2" y="0" z="0" class="orbit" speed="0.75" radius="3"/> -->
+  <light type="ambient" intensity="0.7" />
+  <light type="directional" intensity="1.2" />
+  <group id="world">
+    <plane id="floor" width="200" height="200" color="#2a2a2a" y="0" collider="true" thickness="0.1" />
+    <box id="wall1" width="8" height="2" depth="0.6" color="#546e7a" x="-4" y="1" z="-6" collider="true" />
+    <box id="wall2" width="8" height="2" depth="0.6" color="#546e7a" x=" 4" y="1" z="-6" collider="true" />
+    <box id="centerCube" width="1" height="1" depth="1" color="#4db6ac" x="0" y="0.5" z="0" class="spin" />
   <\/group>
   <script>
-    // Script inline de ejemplo: crear objetos dinámicos
-    const cubes = [];
-    for (let i=0;i<3;i++) {
-      const n = dimension.create('box', { width: 0.5, height: 0.5, depth: 0.5, color: '#90caf9', x: i-1, y: 1.5, z: -2, class: 'spin' });
-      cubes.push(n);
-      dimension.appendChild(n);
-    }
-    setUpdate((dt) => {
-      cubes.forEach((n, idx) => { n.position.y = 1.5 + Math.sin(performance.now()*0.001 + idx)*0.2; });
+    // Ejemplo: "usar" funciona en desktop (click/touch) y VR (select) por el core.
+    dimension.input.onUse(()=>{
+      const hit = dimension.physics.pickCenter();
+      if(!hit) return;
+      let m=hit.object; while(m && !m.isMesh) m=m.parent; if(!m||!m.material||!m.material.color) return;
+      if(!m.userData._base) m.userData._base = m.material.color.clone();
+      const alt = m.userData._alt = !m.userData._alt;
+      if(alt){ const h={h:0,s:0,l:0}; m.material.color.getHSL(h); h.h=(h.h+0.33)%1; h.s=Math.min(1,h.s+0.2); m.material.color.setHSL(h.h,h.s,Math.max(0.35,h.l)); }
+      else m.material.color.copy(m.userData._base);
     });
   <\/script>
 <\/space>`;
 
-    // Carga inicial opcional (descomentar si querés auto-cargar)
-    // setTimeout(loadHSML, 200);
+    // Carga inicial
+    loadHSML();
   </script>
 </body>
 </html>

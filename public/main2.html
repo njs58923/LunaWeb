@@ -1,0 +1,123 @@
+<space>
+  <light type="ambient" intensity="0.65"/>
+  <light type="directional" intensity="1.2"/>
+
+  <group id="world">
+    <plane id="floor" width="220" height="220" color="#2a2a2a" y="0"/>
+    <!-- Muros base (solo geometría). Las colisiones las agrega el script. -->
+    <box id="wallN" width="40" height="2.5" depth="0.8" color="#455a64" x="0"   y="1.25" z="-20"/>
+    <box id="wallS" width="40" height="2.5" depth="0.8" color="#455a64" x="0"   y="1.25" z=" 20"/>
+    <box id="wallW" width="0.8" height="2.5" depth="40" color="#455a64" x="-20" y="1.25" z="0"/>
+    <box id="wallE" width="0.8" height="2.5" depth="40" color="#455a64" x=" 20" y="1.25" z="0"/>
+    <box id="blockA" width="6" height="2" depth="0.6" color="#546e7a" x="-6" y="1" z="-6"/>
+    <box id="blockB" width="6" height="2" depth="0.6" color="#546e7a" x=" 6" y="1" z="-6"/>
+    <box id="blockC" width="6" height="2" depth="0.6" color="#546e7a" x=" 0" y="1" z="-12"/>
+
+    <!-- Solo geometría neutra. El “ser una llave/puerta” lo define el script. -->
+    <sphere id="key_red" radius="0.28" color="#ff5252" x="-6" y="1.1" z="-3" class="pulse"/>
+    <sphere id="key_green" radius="0.28" color="#66bb6a" x=" 6" y="1.1" z="-3" class="pulse"/>
+    <sphere id="key_blue" radius="0.28" color="#42a5f5" x=" 0" y="1.1" z="-9" class="pulse"/>
+
+    <box id="door_red"   width="2" height="2.2" depth="0.3" color="#78909c" x="-6" y="0" z="-16"/>
+    <box id="door_green" width="2" height="2.2" depth="0.3" color="#78909c" x=" 6" y="0" z="-16"/>
+    <box id="door_blue"  width="2" height="2.2" depth="0.3" color="#78909c" x=" 0" y="0" z="-18"/>
+  </group>
+
+  <script>
+  (function(){
+    // ===== Helpers
+    const get = (id) => dimension.find('#'+id)[0];
+    const obj = (idOrNode) => dimension.getObjectFor(idOrNode);
+
+    // ===== Colliders estáticos (muros/bloques/puertas cerradas)
+    const colliders = [];
+    ['wallN','wallS','wallW','wallE','blockA','blockB','blockC','door_red','door_green','door_blue'].forEach(id=>{
+      const o = obj(get(id));
+      const size = (id.startsWith('wall')) ? {x:o.scale.x* (id==='wallW'||id==='wallE'?0.8:40), y:2.5, z:o.scale.z*(id==='wallW'||id==='wallE'?40:0.8)}
+                 : (id.startsWith('door')) ? {x:2, y:2.2, z:0.3}
+                 : {x:6, y:2, z:0.6};
+      colliders.push(dimension.physics.addBoxCollider(o, size));
+    });
+
+    // ===== “Inventario” mínimo (solo en este script)
+    const inv = new Map();
+    const addKey = (k)=>inv.set(k, (inv.get(k)||0)+1);
+    const hasKey = (k)=> (inv.get(k)||0)>0;
+    const useKey = (k)=> { if(!hasKey(k)) return false; inv.set(k, inv.get(k)-1); return true; };
+
+    // ===== Etiquetar objetos con su rol (solo metadatos en userData)
+    const keyMeta = { key_red:'roja', key_green:'verde', key_blue:'azul' };
+    Object.entries(keyMeta).forEach(([id,color])=>{ obj(get(id)).userData.role='key'; obj(get(id)).userData.key=color; });
+    [{id:'door_red',k:'roja'}, {id:'door_green',k:'verde'}, {id:'door_blue',k:'azul'}].forEach(d=>{
+      const o = obj(get(d.id)); o.userData.role='door'; o.userData.req=d.k; o.userData.state='closed';
+    });
+
+    // ===== Interacción: “E” o click mirando al objeto (raycast central)
+    dimension.on('key:down', (e)=>{ if(e.code==='KeyE') tryUse(); });
+    dimension.on('input:click', ()=> tryUse());
+
+    function tryUse(){
+      const hit = dimension.physics.pickCenter();
+      if(!hit) return;
+      let m=hit.object; while(m && !m.userData) m = m.parent;
+      if(!m) return;
+      if(m.userData.role==='key'){ pickupKey(m); return; }
+      if(m.userData.role==='door'){ useDoor(m); return; }
+      // fallback: si es mesh, alterna color para feedback
+      if (hit.object.material && hit.object.material.color) {
+        const mat = hit.object.material;
+        if(!hit.object.userData._base) hit.object.userData._base = mat.color.clone();
+        const alt = hit.object.userData._alt = !hit.object.userData._alt;
+        if(alt){ const h={h:0,s:0,l:0}; mat.color.getHSL(h); h.h=(h.h+0.33)%1; h.s=Math.min(1,h.s+0.2); mat.color.setHSL(h.h,h.s,Math.max(0.35,h.l)); }
+        else mat.color.copy(hit.object.userData._base);
+      }
+    }
+
+    // ===== Recoger llave
+    function pickupKey(mesh){
+      const k = mesh.userData.key;
+      addKey(k);
+      mesh.parent?.remove(mesh); // quitar del mundo
+      dimension.audio.play('https://cdn.jsdelivr.net/gh/naptha/tinyfilehost@master/sfx/coin1.mp3');
+    }
+
+    // ===== Abrir puerta (si hay llave). Animación por update + quitar colisión.
+    function useDoor(door){
+      const need = door.userData.req;
+      if(door.userData.state==='open') return;
+      if(!useKey(need)){ dimension.audio.play('https://cdn.jsdelivr.net/gh/naptha/tinyfilehost@master/sfx/deny1.mp3'); return; }
+      door.userData.state='opening';
+      const openY = 2.4;
+      const speed = 1.8;
+      // remover su collider para liberar paso
+      const idx = colliders.findIndex(c=>c.object===door);
+      if(idx>=0) colliders.splice(idx,1);
+      // animar levantando en Y
+      const stop = dimension.loop.onUpdate((dt)=>{
+        door.position.y = THREE.MathUtils.damp(door.position.y, openY, speed, dt);
+        if (Math.abs(door.position.y - openY) < 0.01){ door.userData.state='open'; stop(); }
+      });
+      dimension.audio.play('https://cdn.jsdelivr.net/gh/naptha/tinyfilehost@master/sfx/door1.mp3');
+    }
+
+    // ===== Activar colisiones para el jugador (opcional)
+    // Reemplazamos el update del controlador por uno que clampa contra colliders.
+    const fps = (dt)=>{
+      const { yaw } = dimension.camera.getYawPitch();
+      const forward = new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
+      const right   = new THREE.Vector3(1,0,0) .applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
+      const pos = dimension.camera.getPosition();
+      const speed = (dimension.input.isDown('ShiftLeft')||dimension.input.isDown('ShiftRight')) ? 0.24 : 0.12;
+      let desired = pos.clone();
+      if(dimension.input.isDown('KeyW')) desired.addScaledVector(forward, speed);
+      if(dimension.input.isDown('KeyS')) desired.addScaledVector(forward,-speed);
+      if(dimension.input.isDown('KeyA')) desired.addScaledVector(right,  -speed);
+      if(dimension.input.isDown('KeyD')) desired.addScaledVector(right,   speed);
+      desired.y = 1.7;
+      desired   = dimension.physics.resolvePlayerXZ(desired, 0.4);
+      dimension.camera.teleport(desired.x, desired.y, desired.z);
+    };
+    dimension.controller.set(fps);
+  })();
+  </script>
+</space>

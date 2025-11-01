@@ -2,7 +2,7 @@ import { stat } from "node:fs/promises";
 import { join, normalize } from "node:path";
 
 // Config
-const PORT = Number(process.env.PORT ?? 8080);
+const PORT = Number(process.env.PORT ?? 3000);
 const PUBLIC_DIR = join(import.meta.dir, "..", "public");
 
 // Helpers
