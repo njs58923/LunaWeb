@@ -5,13 +5,17 @@
   </head>
   <space>
     <plane id="floor" width="22" height="22" color="#2a2a2a" y="0"/>
-    <include id="floor" src="utils/linkBox.html" data-title="Volver al ejemplos" data-to="/testing/sample.html" z="5"/>
+    <include id="toSamples" mount="false" src="utils/linkBox.html" data-title="Volver al ejemplos" data-to="/testing/sample.html" z="5"/>
+    <include id="toHome" mount="false" src="utils/linkBox.html" data-title="Salir" data-to="/sample.html" z="5"/>
     <text id="salaName" fontSize="170px" maxWidth="9999" text="Sala de Pruebas" z="-5" y="3"/>
     <audio src="sounds/ambient.mp3" volume="0.3" autoplay="true" loop="true">
     <script>
-        console.log(location.pathname)
         const text2 = dimension.get('salaName');
         if(dimension.state.title) text2.setAttribute('text', dimension.state.title);
+
+        const isSala = location.pathname == "/testing/sample.html"
+        dimension.get('toSamples').setAttribute('mount', !isSala?"true":"false");
+        dimension.get('toHome').setAttribute('mount', isSala?"true":"false");
     </script>
   </space>
 </hsml>

@@ -438,7 +438,10 @@
         obj.userData.kind = 'include';
         obj.userData.includeKeys = new Set();
         const includeUrl = a.src;
-        if (includeUrl) {
+        const mountAttr = (a.mount ?? a.enabled ?? a.active);
+        const shouldMount = (mountAttr===undefined) ? true : !['false','0','off','no'].includes(String(mountAttr).toLowerCase());
+        obj.userData.includeMounted = false;
+        if (includeUrl && shouldMount) {
           try {
             const res = await fetch(includeUrl);
             const text = await res.text();
@@ -448,6 +451,7 @@
               (incRoot.children || []).forEach(ch => { vnode.appendChild(ch); obj.userData.includeKeys.add(ch.key); });
               obj.userData.includeSrc = includeUrl;
               obj.userData.includeBase = includeUrl;
+              obj.userData.includeMounted = true;
               // Asegurar que los IDs del include estén indexados antes de correr scripts
               reindexVirtualDOM();
               scheduleDevToolUpdate();
@@ -498,6 +502,9 @@
           } catch (e) {
             console.error('Include load error', includeUrl, e);
           }
+        } else {
+          // guardar base/src aunque no se monte todavía
+          if (includeUrl) { obj.userData.includeSrc = includeUrl; obj.userData.includeBase = includeUrl; }
         }
       }
       else if (tag==='model') { obj=new THREE.Object3D(); const src=a.src; if(src){ getGLTFScene(src).then(sceneChild=>{ while(obj.children.length>0) obj.remove(obj.children[0]); obj.add(sceneChild); }).catch(err=>console.error('GLTF load error',src,err)); } }
@@ -649,9 +656,34 @@
         if (vnode.tag === 'include') {
           const desired = attrs.src !== undefined && attrs.src !== null && String(attrs.src).trim() !== '' ? String(attrs.src) : undefined;
           const current = obj.userData ? obj.userData.includeSrc : undefined;
-          if (desired !== current && !obj.userData.includeLoading) {
+          const mountAttr = (attrs.mount ?? attrs.enabled ?? attrs.active);
+          const desiredMount = (mountAttr===undefined) ? true : !['false','0','off','no'].includes(String(mountAttr).toLowerCase());
+          if (desiredMount && desired !== current && !obj.userData.includeLoading) {
             obj.userData.includeLoading = true;
             (async ()=>{ try { await updateIncludeFor(vnode, obj, desired); } finally { obj.userData.includeLoading = false; } })();
+          }
+          const mounted = !!obj.userData.includeMounted;
+          if (desiredMount !== mounted) {
+            if (!desiredMount) {
+              const keys = obj.userData?.includeKeys || new Set();
+              if (keys.size) {
+                for (const k of keys) {
+                  removeNodeByKey(virtualDOM, k);
+                  const o = nodeKeyToObject.get(k);
+                  if (o) { stopAudioRecursive(o); if (o.parent) o.parent.remove(o); }
+                  nodeKeyToObject.delete(k);
+                }
+                obj.userData.includeKeys = new Set();
+              }
+              obj.children.slice().forEach(c => { stopAudioRecursive(c); obj.remove(c); });
+              obj.userData.includeMounted = false;
+            } else {
+              const srcToLoad = desired || current;
+              if (srcToLoad && !obj.userData.includeLoading) {
+                obj.userData.includeLoading = true;
+                (async ()=>{ try { await updateIncludeFor(vnode, obj, srcToLoad); obj.userData.includeMounted = true; } finally { obj.userData.includeLoading = false; } })();
+              }
+            }
           }
         }
         if (attrs.scale!==undefined){ const s=parseFloat(attrs.scale); if(!isNaN(s)) obj.scale.set(s,s,s); }
