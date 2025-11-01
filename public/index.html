@@ -716,6 +716,29 @@
 
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
 
+    // PATCH: giro seguro alrededor del visor (head-locked yaw)
+    const _tmpHeadBefore = new THREE.Vector3();
+    const _tmpHeadAfter  = new THREE.Vector3();
+
+    function yawRigAroundViewer(deltaYaw){
+      // Sin sesión XR: rotación simple del rig
+      if (!renderer.xr.isPresenting) {
+        xrRig.rotateY(deltaYaw);
+        return;
+      }
+
+      // Con XR: mantener la cabeza en su lugar mientras gira el rig
+      const xrCam = renderer.xr.getCamera(camera);
+      _tmpHeadBefore.setFromMatrixPosition(xrCam.matrixWorld);
+
+      // Rotar el rig
+      xrRig.rotateY(deltaYaw);
+
+      // Medir el desplazamiento que causó la rotación y compensar
+      _tmpHeadAfter.setFromMatrixPosition(xrCam.matrixWorld);
+      xrRig.position.add(_tmpHeadBefore.sub(_tmpHeadAfter));
+    }
+
     // RIG del usuario
     const xrRig = new THREE.Group();
     scene.add(xrRig);
@@ -1027,12 +1050,14 @@
     }
 
     function getAxisSafe(gp, ixPrimary, ixAlt){
-      if(!gp || !gp.axes) return 0;
+      if (!gp || !Array.isArray(gp.axes)) return 0;
       const a = gp.axes;
-      if(a.length>ixPrimary && a[ixPrimary]!==undefined) return a[ixPrimary];
-      if(a.length>ixAlt     && a[ixAlt]    !==undefined) return a[ixAlt];
-      return 0;
+      let v = 0;
+      if (a.length > ixPrimary && Number.isFinite(a[ixPrimary])) v = a[ixPrimary];
+      else if (a.length > ixAlt && Number.isFinite(a[ixAlt]))   v = a[ixAlt];
+      return Math.abs(v) < 1e-6 ? 0 : v;
     }
+
 
     const tempMatrix = new THREE.Matrix4();
     function buildXRRay(data){
