@@ -1777,38 +1777,59 @@ class VRPlayer extends PlayerBase {
     const behaviorRegistry = new Map();
     function setUpdate(fn) { userUpdateFunctions.add(fn); }
     function serializeHSML(vnode) { if (!vnode) return ''; const attrs = Object.entries(vnode.attributes).map(([k, v]) => `${k}="${String(v)}"`).join(' '); const open = attrs ? `<${vnode.tag} ${attrs}>` : `<${vnode.tag}>`; if (!vnode.children || vnode.children.length === 0) return `${open}</${vnode.tag}>`; return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`; }
+    
+    // --- Gate global de navegación: "take-leading" ---
+    let _navActiveToken = null;
+    let _navTokenSeq = 0;
+    function _beginNav() {
+      const t = ++_navTokenSeq;
+      if (_navActiveToken !== null) return null; // ya hay una navegación en curso → ignorar
+      _navActiveToken = t;
+      return t;
+    }
+    function _endNav(t) {
+      if (_navActiveToken === t) _navActiveToken = null;
+    }
+
 
     // ----------------- Carga HSML -----------------
     async function loadHSML() {
-      const inputEl = document.getElementById('urlInput');
-      const input = inputEl ? inputEl.value.trim() : '';
-      let hsml = '';
-      const hashLevel = new URLSearchParams(location.hash.replace('#', '')).get('level');
-      if (!input && hashLevel) {
-        try { const res = await fetch(hashLevel); hsml = await res.text(); }
-        catch (e) { console.warn('No se pudo cargar hash level, usando demo'); hsml = DEFAULT_HSML; }
-      } else if (!input && !hashLevel) {
-        let home = '';
-        try { home = localStorage.getItem('hsml:home') || ''; } catch (_) { home = ''; }
-        if (home) {
-          if (inputEl) inputEl.value = home;
-          if (home.trim().startsWith('<')) { hsml = home; }
-          else {
-            try { const res = await fetch(home); hsml = await res.text(); }
-            catch (e) { console.warn('No se pudo cargar HOME, usando demo'); hsml = DEFAULT_HSML; }
+      
+      const _tok = _beginNav();
+      if (_tok === null) { console.warn('[nav] loadHSML ignorado (en curso)'); return; }
+      try {
+        const inputEl = document.getElementById('urlInput');
+        const input = inputEl ? inputEl.value.trim() : '';
+        let hsml = '';
+        const hashLevel = new URLSearchParams(location.hash.replace('#', '')).get('level');
+        if (!input && hashLevel) {
+          try { const res = await fetch(hashLevel); hsml = await res.text(); }
+          catch (e) { console.warn('No se pudo cargar hash level, usando demo'); hsml = DEFAULT_HSML; }
+        } else if (!input && !hashLevel) {
+          let home = '';
+          try { home = localStorage.getItem('hsml:home') || ''; } catch (_) { home = ''; }
+          if (home) {
+            if (inputEl) inputEl.value = home;
+            if (home.trim().startsWith('<')) { hsml = home; }
+            else {
+              try { const res = await fetch(home); hsml = await res.text(); }
+              catch (e) { console.warn('No se pudo cargar HOME, usando demo'); hsml = DEFAULT_HSML; }
+            }
+          } else {
+            hsml = DEFAULT_HSML;
           }
+        } else if (input && input.startsWith('<')) {
+          hsml = input;
+        } else if (input) {
+          try { const res = await fetch(input); hsml = await res.text(); }
+          catch (e) { console.warn('No se pudo cargar URL, usando demo'); hsml = DEFAULT_HSML; }
         } else {
           hsml = DEFAULT_HSML;
         }
-      } else if (input && input.startsWith('<')) {
-        hsml = input;
-      } else if (input) {
-        try { const res = await fetch(input); hsml = await res.text(); }
-        catch (e) { console.warn('No se pudo cargar URL, usando demo'); hsml = DEFAULT_HSML; }
-      } else {
-        hsml = DEFAULT_HSML;
+        await importHSMLFromString(hsml);
+      } finally {
+        _endNav(_tok);
       }
-      await importHSMLFromString(hsml);
     }
 
     async function importHSMLFromString(hsml) {
@@ -1860,18 +1881,42 @@ class VRPlayer extends PlayerBase {
     // Track last HSML source to support sandbox navigation-like behavior
     let lastHSMLSource = null; // { type: 'url'|'string', value: string }
     function sandboxNavigate(url, replace = false) {
+      const _tok = _beginNav();
+      if (_tok === null) { console.warn('[nav] sandboxNavigate ignorado (en curso)'); return; }
+
       try {
         const urlInputEl = document.getElementById('urlInput');
+
+        // HSML inline: carga directa (sin fetch)
         if (url && url.trim().startsWith('<')) {
           lastHSMLSource = { type: 'string', value: url };
-          importHSMLFromString(url);
+          importHSMLFromString(url)
+            .finally(() => _endNav(_tok));
           return;
         }
-        if (!url) return;
+
+        if (!url) { _endNav(_tok); return; }
+
         if (urlInputEl) urlInputEl.value = url;
-        try { const hash = '#level=' + encodeURIComponent(url); if (replace) history.replaceState({}, '', hash); else history.pushState({}, '', hash); } catch (_) { }
-        fetch(url).then(r => r.text()).then(txt => { lastHSMLSource = { type: 'url', value: url }; importHSMLFromString(txt); }).catch(e => console.error('Sandbox navigate error', url, e));
-      } catch (e) { console.error('sandboxNavigate error', e); }
+        try {
+          const hash = '#level=' + encodeURIComponent(url);
+          if (replace) history.replaceState({}, '', hash);
+          else history.pushState({}, '', hash);
+        } catch (_) {}
+
+        fetch(url)
+          .then(r => r.text())
+          .then(txt => {
+            lastHSMLSource = { type: 'url', value: url };
+            return importHSMLFromString(txt);
+          })
+          .catch(e => console.error('Sandbox navigate error', url, e))
+          .finally(() => _endNav(_tok));
+
+      } catch (e) {
+        console.error('sandboxNavigate error', e);
+        _endNav(_tok);
+      }
     }
 
     function runSandbox(code) {
