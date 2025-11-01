@@ -508,7 +508,48 @@
       else if (tag==='html'){ obj=createTextPlane(a, 'html'); }
       else if (tag==='video'){ obj=createVideoPlane(a); }
       else if (tag==='light'){ const type=(a.type||'ambient').toLowerCase(); const color=new THREE.Color(a.color||'#ffffff'); const intensity=parseFloat(a.intensity??1); if (type==='ambient') obj=new THREE.AmbientLight(color,intensity); else if(type==='directional'){ obj=new THREE.DirectionalLight(color,intensity); obj.position.set(5,10,5); } else if(type==='point'){ obj=new THREE.PointLight(color,intensity, parseFloat(a.distance??0)); } else if(type==='hemisphere'){ obj=new THREE.HemisphereLight(0xffffff,0x444444,intensity); } else { obj=new THREE.Object3D(); } }
-      else if (tag==='audio'){ obj=new THREE.Object3D(); }
+      else if (tag==='audio'){
+        obj=new THREE.Object3D();
+        obj.userData.kind='audio';
+        obj.userData.audio=null;
+        obj.userData._audioState={ src:null, loop:false, autoplay:false, volume:0.7, positional:false, refDistance:8 };
+        function attachAudioFromAttrs(attrs){
+          const wantPos = String(attrs.positional).toLowerCase()==='true';
+          const vol = isNaN(parseFloat(attrs.volume))? 0.7 : parseFloat(attrs.volume);
+          const loop = String(attrs.loop).toLowerCase()==='true';
+          const auto = String(attrs.autoplay).toLowerCase()==='true';
+          const refD = isNaN(parseFloat(attrs.refDistance))? 8 : parseFloat(attrs.refDistance);
+          const src = attrs.src||null;
+          const st = obj.userData._audioState;
+          const needsRebuild = (st.positional!==wantPos) || (st.src!==src);
+          st.positional = wantPos; st.loop=loop; st.autoplay=auto; st.volume=vol; st.refDistance=refD; st.src=src;
+          if (!src) { if(obj.userData.audio){ try{ obj.userData.audio.stop(); }catch(_){}; obj.remove(obj.userData.audio); obj.userData.audio=null; } return; }
+          if (needsRebuild){
+            if (obj.userData.audio){ try{ obj.userData.audio.stop(); }catch(_){}; obj.remove(obj.userData.audio); obj.userData.audio=null; }
+            const a = wantPos ? new THREE.PositionalAudio(audioListener) : new THREE.Audio(audioListener);
+            obj.add(a);
+            obj.userData.audio = a;
+            audioLoader.load(src, buffer=>{
+              a.setBuffer(buffer);
+              a.setLoop(loop);
+              a.setVolume(vol);
+              if (wantPos && a.setRefDistance) a.setRefDistance(refD);
+              if (auto) a.play();
+            });
+          } else {
+            const a = obj.userData.audio;
+            if (a){
+              a.setLoop(loop);
+              a.setVolume(vol);
+              if (wantPos && a.setRefDistance) a.setRefDistance(refD);
+              // autoplay handled on (re)load; manual play if requested and buffer present
+              if (auto && a.buffer && !a.isPlaying) a.play();
+            }
+          }
+        }
+        obj.userData.updateFromAttrs = attachAudioFromAttrs;
+        attachAudioFromAttrs(a);
+      }
       else { obj=new THREE.Object3D(); }
 
       if (String(a.visible).toLowerCase()==='false') obj.visible = false;
@@ -624,6 +665,9 @@
           obj.userData.updateContent(attrs);
         }
         if (obj.userData && obj.userData.kind==='video' && typeof obj.userData.updateFromAttrs==='function'){
+          obj.userData.updateFromAttrs(attrs);
+        }
+        if (obj.userData && obj.userData.kind==='audio' && typeof obj.userData.updateFromAttrs==='function'){
           obj.userData.updateFromAttrs(attrs);
         }
         if (attrs.color!==undefined){
