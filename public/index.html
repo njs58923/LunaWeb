@@ -389,6 +389,7 @@
         const session = renderer.xr.getSession();
         if(!session){ return; }
 
+        if(!xrSources.left && !xrSources.right) bindXRInputSources();
         const leftGp  = xrSources.left?.gamepad || null;
         const rightGp = xrSources.right?.gamepad || null;
 
@@ -396,7 +397,7 @@
         let ly = getAxisSafe(leftGp,  3, 1);
         let rx = getAxisSafe(rightGp, 2, 0);
 
-        const dead=0.18, turnDead=0.3;
+        const dead=0.1, turnDead=0.25;
         if(Math.abs(lx)<dead) lx=0;
         if(Math.abs(ly)<dead) ly=0;
         if(Math.abs(rx)<turnDead) rx=0;
