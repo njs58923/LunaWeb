@@ -1,6 +1,16 @@
 <hsml>
+  <head>
+    <light type="ambient" intensity="0.65"/>
+    <light type="directional" intensity="1.2"/>
+  </head>
   <space>
-    <plane id="floor" width="22" height="22" color="#2a2a2a" y="0" color="#546e7a"/>
+    <plane id="floor" width="22" height="22" color="#2a2a2a" y="0"/>
+    <include src="utils/linkBox.html" data-title="Volver al ejemplos" data-to="/testing/sample.html" z="5"/>
+    <text id="salaName" fontSize="170px" maxWidth="9999" text="Sala de Pruebas" z="-5" y="3"/>
+    <audio src="sounds/ambient.mp3" autoplay="true" loop="true">
   </space>
-
+  <script>
+    const text2 = dimension.get('salaName');
+    if(dimension.state.title) text2.setAttribute('text', dimension.state.title);
+  </script>
 </hsml>
