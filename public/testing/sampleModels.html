@@ -10,9 +10,10 @@
   <script>
     // ========= Config =========
     const MODELS = [
+      { name: 'vr_art.glb',         src: 'models/vr_art.glb' },
       { name: 'abandoned_brick.glb', src: 'models/abandoned_brick.glb' },
-      { name: 'vr_art.glb',         src: 'models/vr_art.glb' }
-      // { name: 'otro.glb', src: 'models/otro.glb' },
+      { name: 'white.glb', src: 'models/white.glb?2' },
+      { name: 'Sims4_TinyLivingPack_1_0.glb', src: 'models/Sims4_TinyLivingPack_1_0.glb' },
     ];
 
     const BTN = {
@@ -63,7 +64,6 @@
       });
 
       btn.addEventListener('toque', ()=>{
-        console.log("existing", btn)
         spawnModel(item.src);
         btn.setAttribute('color', '#5c6bc0'); 
         setTimeout(()=> btn.setAttribute('color', '#3a3a3a'), 200);
