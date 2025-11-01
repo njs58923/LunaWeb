@@ -1,8 +1,9 @@
 <hsml>
   <space>
     <group class="spin">
-      <box id="box" color="#546e7a" y="0"/>
-      <text id="text" text="..." y="1" />
+      <box id="box" color="#546e7a" y="1"/>
+      <text id="text" text="..." y="1.7"/>
+      <text id="text2" text="..." y="1.7" ry="3"/>
     </group>
   </space>
   <script>
@@ -11,5 +12,7 @@
     box.addEventListener('toque', () => { location.href = to; });
     const text = dimension.get('text');
     text.setAttribute('text', title);
+    const text2 = dimension.get('text2');
+    text2.setAttribute('text', title);
   </script>
 </hsml>
