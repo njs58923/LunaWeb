@@ -1,2 +1,2 @@
 node_modules
-public\models\resources
+public/models/resources/*

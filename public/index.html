@@ -1,30 +1,151 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <title>Framework V3.2 • Espacios Virtuales (HSML)</title>
   <style>
-    :root { --bg:#181818; --fg:#eee; --panel:#222; --btn:#444; --btnH:#666; }
-    body { margin:0; overflow:hidden; display:flex; flex-direction:column; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; background:var(--bg); color:var(--fg); }
-    #toolbar { padding:8px 10px; background:var(--panel); display:flex; gap:10px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,.5); position:relative; z-index:2; }
-    #urlInput { flex:1; padding:6px 8px; border:none; border-radius:4px; font-size:14px; }
-    button { padding:6px 14px; cursor:pointer; border:none; border-radius:4px; background:var(--btn); color:#fff; font-size:14px; transition:background .2s, transform .02s; }
-    button:hover{ background:var(--btnH); }
-    button:active{ transform:translateY(1px); }
-    canvas { display:block; flex:1; }
+    :root {
+      --bg: #181818;
+      --fg: #eee;
+      --panel: #222;
+      --btn: #444;
+      --btnH: #666;
+    }
 
-    #devPanel { position:fixed; bottom:0; left:0; right:0; background:rgba(20,20,20,0.95); color:#eee; font-family:Consolas, monospace; font-size:13px; padding:8px; max-height:40vh; overflow-y:auto; display:none; z-index:5; border-top:2px solid #444; }
-    #devPanelHeader { display:flex; gap:8px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
-    .devTabBtn { font-size:12px; padding:4px 10px; background:#333; border:none; border-radius:4px; }
-    .devTabBtn:hover{ background:#555; }
-    #inspectorView, #statusView { margin-top:6px; }
-    #statusView { display:none; }
-    #treeView ul{ list-style:none; margin-left:20px; padding-left:10px; border-left:1px dotted #555; }
-    #treeView li{ margin:4px 0; }
-    #treeView .attrLabel{ margin-left:4px; }
-    #treeView .attrInput{ outline:1px dashed transparent; padding:0 3px; border-radius:3px; display:inline-block; white-space:pre; margin-right:2px; }
-    #treeView .attrInput:focus{ outline:1px dashed #66f; background:#222; }
-    #smallNote { opacity:.8; font-size:11px; margin-left:auto; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    #toolbar {
+      padding: 8px 10px;
+      background: var(--panel);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .5);
+      position: relative;
+      z-index: 2;
+    }
+
+    #urlInput {
+      flex: 1;
+      padding: 6px 8px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 6px 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background: var(--btn);
+      color: #fff;
+      font-size: 14px;
+      transition: background .2s, transform .02s;
+    }
+
+    button:hover {
+      background: var(--btnH);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    canvas {
+      display: block;
+      flex: 1;
+    }
+
+    #devPanel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(20, 20, 20, 0.95);
+      color: #eee;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      padding: 8px;
+      max-height: 40vh;
+      overflow-y: auto;
+      display: none;
+      z-index: 5;
+      border-top: 2px solid #444;
+    }
+
+    #devPanelHeader {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .devTabBtn {
+      font-size: 12px;
+      padding: 4px 10px;
+      background: #333;
+      border: none;
+      border-radius: 4px;
+    }
+
+    .devTabBtn:hover {
+      background: #555;
+    }
+
+    #inspectorView,
+    #statusView {
+      margin-top: 6px;
+    }
+
+    #statusView {
+      display: none;
+    }
+
+    #treeView ul {
+      list-style: none;
+      margin-left: 20px;
+      padding-left: 10px;
+      border-left: 1px dotted #555;
+    }
+
+    #treeView li {
+      margin: 4px 0;
+    }
+
+    #treeView .attrLabel {
+      margin-left: 4px;
+    }
+
+    #treeView .attrInput {
+      outline: 1px dashed transparent;
+      padding: 0 3px;
+      border-radius: 3px;
+      display: inline-block;
+      white-space: pre;
+      margin-right: 2px;
+    }
+
+    #treeView .attrInput:focus {
+      outline: 1px dashed #66f;
+      background: #222;
+    }
+
+    #smallNote {
+      opacity: .8;
+      font-size: 11px;
+      margin-left: auto;
+    }
   </style>
 
   <script type="importmap">
@@ -48,6 +169,7 @@
     }
   </style>
 </head>
+
 <body>
   <div id="toolbar">
     <input id="urlInput" type="text" placeholder="Pega HSML o URL (Enter)" value="">
@@ -58,7 +180,8 @@
     <select id="favList" title="Favoritos" style="max-width:220px;"></select>
     <button id="favGoBtn" title="Abrir favorito"><span class="material-symbols-outlined">arrow_forward</span></button>
     <button id="homeGoBtn" title="Ir a inicio"><span class="material-symbols-outlined">home</span></button>
-    <button id="homeSetBtn" title="Establecer como inicio (desde input)"><span class="material-symbols-outlined">push_pin</span></button>
+    <button id="homeSetBtn" title="Establecer como inicio (desde input)"><span
+        class="material-symbols-outlined">push_pin</span></button>
     <button id="optionsBtn" title="Opciones"><span class="material-symbols-outlined">settings</span></button>
   </div>
   <div id="optionsPanel" style="display:none; background:rgba(0,0,0,0.4); padding:6px 10px; border-top:1px solid #333;">
@@ -71,14 +194,22 @@
 
   <div id="devPanel">
     <div id="devPanelHeader">
-      <button id="inspectorTabBtn" class="devTabBtn" title="Inspector"><span class="material-symbols-outlined">explore</span></button>
-      <button id="statusTabBtn" class="devTabBtn" title="Estado"><span class="material-symbols-outlined">bar_chart</span></button>
-      <button id="toggleFreeCameraBtn" class="devTabBtn" title="Capturar/Liberar Mouse"><span class="material-symbols-outlined">mouse</span></button>
-      <button id="toggleLightingBtn" class="devTabBtn" title="Luz"><span class="material-symbols-outlined">light_mode</span></button>
-      <button id="toggleGridBtn" class="devTabBtn" title="Grid"><span class="material-symbols-outlined">grid_on</span></button>
-      <button id="reloadBtn" class="devTabBtn" title="Recargar"><span class="material-symbols-outlined">refresh</span></button>
+      <button id="inspectorTabBtn" class="devTabBtn" title="Inspector"><span
+          class="material-symbols-outlined">explore</span></button>
+      <button id="statusTabBtn" class="devTabBtn" title="Estado"><span
+          class="material-symbols-outlined">bar_chart</span></button>
+      <button id="toggleFreeCameraBtn" class="devTabBtn" title="Capturar/Liberar Mouse"><span
+          class="material-symbols-outlined">mouse</span></button>
+      <button id="toggleLightingBtn" class="devTabBtn" title="Luz"><span
+          class="material-symbols-outlined">light_mode</span></button>
+      <button id="toggleGridBtn" class="devTabBtn" title="Grid"><span
+          class="material-symbols-outlined">grid_on</span></button>
+      <button id="reloadBtn" class="devTabBtn" title="Recargar"><span
+          class="material-symbols-outlined">refresh</span></button>
     </div>
-    <div id="inspectorView"><strong>Árbol Virtual HSML</strong><div id="treeView"></div></div>
+    <div id="inspectorView"><strong>Árbol Virtual HSML</strong>
+      <div id="treeView"></div>
+    </div>
     <div id="statusView">
       <strong>Estado del Render</strong>
       <div style="margin-top:4px;">
@@ -96,15 +227,15 @@
     import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
     // ===================== Núcleo V3.1 (optimizado esencial) =====================
-    class VirtualNode { 
-      constructor(tag){ 
-        this.tag=tag; 
-        this.attributes={}; 
-        this.children=[]; 
-        this.key=VirtualNode.nextKey++;
-      } 
-      setAttribute(a,v){ this.attributes[a]=v; }
-      appendChild(c){ this.children.push(c); }
+    class VirtualNode {
+      constructor(tag) {
+        this.tag = tag;
+        this.attributes = {};
+        this.children = [];
+        this.key = VirtualNode.nextKey++;
+      }
+      setAttribute(a, v) { this.attributes[a] = v; }
+      appendChild(c) { this.children.push(c); }
     }
     VirtualNode.nextKey = 1;
 
@@ -118,31 +249,110 @@
     const keyToVNode = new Map();
     const vnodeEventHandlers = new WeakMap();
 
+    const proxyToVNode = new WeakMap();
+    function unwrapVNode(n) { return proxyToVNode.get(n) || n; }
+
+    function indexerAddNode(v) {
+      const r = unwrapVNode(v);
+      keyToVNode.set(r.key, r);
+      const id = r.attributes.id;
+      if (id) idToVNode.set(id, r);
+      const cls = (r.attributes.class || '').trim();
+      if (cls) {
+        cls.split(/\s+/).forEach(c => {
+          if (!classToVNodes.has(c)) classToVNodes.set(c, new Set());
+          classToVNodes.get(c).add(r);
+        });
+      }
+    }
+    function indexerRemoveNode(v) {
+      const r = unwrapVNode(v);
+      keyToVNode.delete(r.key);
+      const id = r.attributes.id;
+      if (id && idToVNode.get(id) === r) idToVNode.delete(id);
+      const cls = (r.attributes.class || '').trim();
+      if (cls) {
+        cls.split(/\s+/).forEach(c => {
+          const set = classToVNodes.get(c);
+          if (set) {
+            set.delete(r);
+            if (!set.size) classToVNodes.delete(c);
+          }
+        });
+      }
+    }
+    function indexerAddSubtree(v) {
+      (function walk(n) {
+        if (!n) return;
+        indexerAddNode(n);
+        (n.children || []).forEach(walk);
+      })(unwrapVNode(v));
+    }
+    function indexerRemoveSubtree(v) {
+      (function walk(n) {
+        if (!n) return;
+        (n.children || []).forEach(walk);
+        indexerRemoveNode(n);
+      })(unwrapVNode(v));
+    }
+    function deindexByKey(key) {
+      const v = keyToVNode.get(key);
+      if (v) indexerRemoveSubtree(v);
+    }
+
+    // NUEVO: reacción a cambios de atributo id/class
+    function indexerOnAttrChange(v, name, oldVal, newVal) {
+      const r = unwrapVNode(v);
+      if (name === 'id') {
+        if (oldVal && idToVNode.get(oldVal) === r) idToVNode.delete(oldVal);
+        if (newVal) idToVNode.set(newVal, r);
+      } else if (name === 'class') {
+        const was = (oldVal || '').trim();
+        if (was) {
+          was.split(/\s+/).forEach(c => {
+            const set = classToVNodes.get(c);
+            if (set) {
+              set.delete(r);
+              if (!set.size) classToVNodes.delete(c);
+            }
+          });
+        }
+        const now = (newVal || '').trim();
+        if (now) {
+          now.split(/\s+/).forEach(c => {
+            if (!classToVNodes.has(c)) classToVNodes.set(c, new Set());
+            classToVNodes.get(c).add(r);
+          });
+        }
+      }
+    }
+
+
     // Loop de usuario
     const userUpdateFunctions = new Set();
 
     // Bus de eventos
     const eventHandlers = new Map();
-    function on(event, handler){ if(!eventHandlers.has(event)) eventHandlers.set(event, new Set()); eventHandlers.get(event).add(handler); }
-    function off(event, handler){ const s=eventHandlers.get(event); if(s) s.delete(handler); }
-    function emit(event, data){
-      const s=eventHandlers.get(event);
-      if(s) s.forEach(fn=>{ try{ fn(data); }catch(e){ console.error('event handler error', e); } });
-      try{ const ce = new CustomEvent(event, { detail: data }); document.dispatchEvent(ce); }catch(e){ /* ignore */ }
+    function on(event, handler) { if (!eventHandlers.has(event)) eventHandlers.set(event, new Set()); eventHandlers.get(event).add(handler); }
+    function off(event, handler) { const s = eventHandlers.get(event); if (s) s.delete(handler); }
+    function emit(event, data) {
+      const s = eventHandlers.get(event);
+      if (s) s.forEach(fn => { try { fn(data); } catch (e) { console.error('event handler error', e); } });
+      try { const ce = new CustomEvent(event, { detail: data }); document.dispatchEvent(ce); } catch (e) { /* ignore */ }
     }
 
-    function emitToNode(event, vnode, data){
+    function emitToNode(event, vnode, data) {
       const proxy = createProxiedNode(vnode);
-      const ev = { type:event, target: proxy, detail: data };
+      const ev = { type: event, target: proxy, detail: data };
       const map = vnodeEventHandlers.get(vnode);
-      if (map){ const set = map.get(event); if(set){ set.forEach(fn=>{ try{ fn(ev); }catch(e){ console.error('node handler error', e); } }); } }
+      if (map) { const set = map.get(event); if (set) { set.forEach(fn => { try { fn(ev); } catch (e) { console.error('node handler error', e); } }); } }
       emit(event, { target: proxy, ...data });
     }
 
-    function findVNodeFromObject(obj){ let o=obj; while(o){ const k=o.userData?.key; if(k && keyToVNode.has(k)) return keyToVNode.get(k); o=o.parent; } return null; }
+    function findVNodeFromObject(obj) { let o = obj; while (o) { const k = o.userData?.key; if (k && keyToVNode.has(k)) return keyToVNode.get(k); o = o.parent; } return null; }
 
     // Helpers
-    const MATH = { clamp:(v,a,b)=>Math.max(a,Math.min(b,v)) };
+    const MATH = { clamp: (v, a, b) => Math.max(a, Math.min(b, v)) };
 
     // Iluminación & helpers
     let lightingEnabled = true;
@@ -150,122 +360,158 @@
     const axesHelper = new THREE.AxesHelper(3); axesHelper.visible = false;
 
     // Stats
-    let lastTimeStat = performance.now(), frames=0, currentFPS=0, lastFrameTS=performance.now();
+    let lastTimeStat = performance.now(), frames = 0, currentFPS = 0, lastFrameTS = performance.now();
 
     // DevTools scheduling
-    let devtoolDirty=false, lastDevtoolUpdate=0; const DEVTOOL_THROTTLE_MS=100;
+    let devtoolDirty = false, lastDevtoolUpdate = 0; const DEVTOOL_THROTTLE_MS = 100;
     let isDevPanelOpen = false;
-    function scheduleDevToolUpdate(){ devtoolDirty=true; }
-    function maybeUpdateDevTool(){ if(!devtoolDirty || !isDevPanelOpen) return; const now=performance.now(); if(now-lastDevtoolUpdate>=DEVTOOL_THROTTLE_MS){ reindexVirtualDOM(); updateDevTool(); devtoolDirty=false; lastDevtoolUpdate=now; } }
+    function scheduleDevToolUpdate() { devtoolDirty = true; }
+    function maybeUpdateDevTool() { if (!devtoolDirty || !isDevPanelOpen) return; const now = performance.now(); if (now - lastDevtoolUpdate >= DEVTOOL_THROTTLE_MS) { reindexVirtualDOM(); updateDevTool(); devtoolDirty = false; lastDevtoolUpdate = now; } }
 
     // === Dirty sets (aplica cambios solo a nodos sucios) ===
     const dirtyNodes = new Set();
     const dirtyColliders = new Set();
-    function markDirty(vnode){ dirtyNodes.add(vnode.key); dirtyColliders.add(vnode.key); }
+    function markDirty(vnode) { dirtyNodes.add(vnode.key); dirtyColliders.add(vnode.key); }
 
     // Interactivos (para toques VR optimizados)
     const interactiveKeys = new Set();
     const interactiveObjects = new Set();
 
-    function createProxiedNode(tagOrExisting){
-      const realNode = (typeof tagOrExisting==='string') ? new VirtualNode(tagOrExisting) : tagOrExisting;
+    function createProxiedNode(tagOrExisting) {
+      const realNode = (typeof tagOrExisting === 'string') ? new VirtualNode(tagOrExisting) : tagOrExisting;
       if (vnodeToProxy.has(realNode)) return vnodeToProxy.get(realNode);
       keyToVNode.set(realNode.key, realNode);
       const proxy = new Proxy(realNode, {
-        get(target, prop, receiver){
+        get(target, prop, receiver) {
           if (prop === 'addEventListener') {
-            return (event, handler)=>{
-              let m=vnodeEventHandlers.get(target); if(!m){ m=new Map(); vnodeEventHandlers.set(target,m);} if(!m.has(event)) m.set(event,new Set()); m.get(event).add(handler);
-              if (event==='toque'){ interactiveKeys.add(target.key); const o=nodeKeyToObject.get(target.key); if(o) interactiveObjects.add(o); }
+            return (event, handler) => {
+              let m = vnodeEventHandlers.get(target); if (!m) { m = new Map(); vnodeEventHandlers.set(target, m); }
+              if (!m.has(event)) m.set(event, new Set());
+              m.get(event).add(handler);
+              if (event === 'toque') { interactiveKeys.add(target.key); const o = nodeKeyToObject.get(target.key); if (o) interactiveObjects.add(o); }
             };
           }
-          if (prop === 'removeEventListener') { return (event, handler)=>{ const m=vnodeEventHandlers.get(target); if(!m) return; const s=m.get(event); if(s) s.delete(handler); }; }
-          if (prop === 'dispatchEvent') { return (event)=>{ const m=vnodeEventHandlers.get(target); if(!m) return; const s=m.get(event?.type||''); if(!s) return; s.forEach(fn=>{ try{ fn(event); }catch(e){ console.error('node handler error', e); } }); }; }
+          if (prop === 'removeEventListener') { return (event, handler) => { const m = vnodeEventHandlers.get(target); if (!m) return; const s = m.get(event); if (s) s.delete(handler); }; }
+          if (prop === 'dispatchEvent') { return (event) => { const m = vnodeEventHandlers.get(target); if (!m) return; const s = m.get(event?.type || ''); if (!s) return; s.forEach(fn => { try { fn(event); } catch (e) { console.error('node handler error', e); } }); }; }
+
+          // ¡IMPORTANTE! Al hacer append, indexar el subárbol agregado
+          if (prop === 'appendChild') {
+            return (childProxy) => {
+              const childReal = unwrapVNode(childProxy);
+              target.children.push(childReal);
+              indexerAddSubtree(childReal);
+              scheduleDevToolUpdate();
+            };
+          }
+
+          if (prop === 'setAttribute') {
+            return (attr, val) => {
+              const old = target.attributes[attr];
+              target.setAttribute(attr, val);
+              if (attr === 'id' || attr === 'class') indexerOnAttrChange(target, attr, old, val);
+              markDirty(target);
+              scheduleDevToolUpdate();
+            };
+          }
+
           if (prop === 'position') {
             return {
-              get x(){return parseFloat(target.attributes.x ?? 0);}, set x(v){target.setAttribute('x', v); markDirty(target); scheduleDevToolUpdate();},
-              get y(){return parseFloat(target.attributes.y ?? 0);}, set y(v){target.setAttribute('y', v); markDirty(target); scheduleDevToolUpdate();},
-              get z(){return parseFloat(target.attributes.z ?? 0);}, set z(v){target.setAttribute('z', v); markDirty(target); scheduleDevToolUpdate();}
+              get x() { return parseFloat(target.attributes.x ?? 0); }, set x(v) { target.setAttribute('x', v); markDirty(target); scheduleDevToolUpdate(); },
+              get y() { return parseFloat(target.attributes.y ?? 0); }, set y(v) { target.setAttribute('y', v); markDirty(target); scheduleDevToolUpdate(); },
+              get z() { return parseFloat(target.attributes.z ?? 0); }, set z(v) { target.setAttribute('z', v); markDirty(target); scheduleDevToolUpdate(); }
             };
           }
           if (prop === 'rotation') {
             return {
-              get x(){return parseFloat(target.attributes.rx ?? 0);}, set x(v){target.setAttribute('rx', v); markDirty(target); scheduleDevToolUpdate();},
-              get y(){return parseFloat(target.attributes.ry ?? 0);}, set y(v){target.setAttribute('ry', v); markDirty(target); scheduleDevToolUpdate();},
-              get z(){return parseFloat(target.attributes.rz ?? 0);}, set z(v){target.setAttribute('rz', v); markDirty(target); scheduleDevToolUpdate();}
+              get x() { return parseFloat(target.attributes.rx ?? 0); }, set x(v) { target.setAttribute('rx', v); markDirty(target); scheduleDevToolUpdate(); },
+              get y() { return parseFloat(target.attributes.ry ?? 0); }, set y(v) { target.setAttribute('ry', v); markDirty(target); scheduleDevToolUpdate(); },
+              get z() { return parseFloat(target.attributes.rz ?? 0); }, set z(v) { target.setAttribute('rz', v); markDirty(target); scheduleDevToolUpdate(); }
             };
           }
-          if (prop === 'appendChild') { return (childProxy)=>{ target.children.push(childProxy); }; }
-          if (prop === 'setAttribute') { return (attr,val)=>{ target.setAttribute(attr,val); markDirty(target); scheduleDevToolUpdate(); }; }
+
           if (prop in target.attributes) return target.attributes[prop];
           return Reflect.get(target, prop, receiver);
         },
-        set(target, prop, value){
-          const hot = [ 'src','class','id','scale','x','y','z','rx','ry','rz','color','texture','metalness','roughness','emissive','collider','visible','width','height','depth','radius','thickness','text','html','font','fontSize','maxwidth','lineheight','bg','autoplay','loop','muted','unitsperpx' ];
-          if (hot.includes(prop)) { target.setAttribute(prop, value); markDirty(target); scheduleDevToolUpdate(); return true; }
+        set(target, prop, value) {
+          const hot = ['src', 'class', 'id', 'scale', 'x', 'y', 'z', 'rx', 'ry', 'rz', 'color', 'texture', 'metalness', 'roughness', 'emissive', 'collider', 'visible', 'width', 'height', 'depth', 'radius', 'thickness', 'text', 'html', 'font', 'fontSize', 'maxwidth', 'lineheight', 'bg', 'autoplay', 'loop', 'muted', 'unitsperpx'];
+          if (hot.includes(prop)) {
+            const old = target.attributes[prop];
+            target.setAttribute(prop, value);
+            if (prop === 'id' || prop === 'class') indexerOnAttrChange(target, prop, old, value);
+            markDirty(target);
+            scheduleDevToolUpdate();
+            return true;
+          }
           return Reflect.set(target, prop, value);
         }
       });
-      vnodeToProxy.set(realNode, proxy); return proxy;
+      vnodeToProxy.set(realNode, proxy);
+      proxyToVNode.set(proxy, realNode); // <— NUEVO
+      return proxy;
     }
 
     // ----------------- Parser HSML -----------------
-    function parseHSML(xmlNode){ if(!xmlNode||xmlNode.nodeType!==Node.ELEMENT_NODE) return null; const vnode=new VirtualNode(xmlNode.nodeName); for(let i=0;i<xmlNode.attributes.length;i++){ const a=xmlNode.attributes[i]; vnode.setAttribute(a.name, a.value); } Array.from(xmlNode.childNodes).forEach(ch=>{ const c=parseHSML(ch); if(c) vnode.appendChild(c); }); return vnode; }
-    function reindexVirtualDOM(){ idToVNode.clear(); classToVNodes.clear(); keyToVNode.clear(); (function walk(v){ if(!v) return; keyToVNode.set(v.key, v); const id=v.attributes.id; if(id) idToVNode.set(id,v); const cls=(v.attributes.class||'').trim(); if(cls){ cls.split(/\s+/).forEach(c=>{ if(!classToVNodes.has(c)) classToVNodes.set(c,new Set()); classToVNodes.get(c).add(v); }); } (v.children||[]).forEach(walk); })(virtualDOM); }
+    function parseHSML(xmlNode) { if (!xmlNode || xmlNode.nodeType !== Node.ELEMENT_NODE) return null; const vnode = new VirtualNode(xmlNode.nodeName); for (let i = 0; i < xmlNode.attributes.length; i++) { const a = xmlNode.attributes[i]; vnode.setAttribute(a.name, a.value); } Array.from(xmlNode.childNodes).forEach(ch => { const c = parseHSML(ch); if (c) vnode.appendChild(c); }); return vnode; }
+    function reindexVirtualDOM() {
+      idToVNode.clear();
+      classToVNodes.clear();
+      keyToVNode.clear();
+      indexerAddSubtree(virtualDOM);
+    }
 
     // ----------------- HSML root helpers (hsml/head/space) -----------------
     const globalState = {};
-    function extractHeadData(headEl){
-      const meta = { position:null, scale:null, rotation:null, spawn:null };
+    function extractHeadData(headEl) {
+      const meta = { position: null, scale: null, rotation: null, spawn: null };
       const extraChildren = [];
-      if(!headEl) return { meta, extraChildren };
+      if (!headEl) return { meta, extraChildren };
       const metas = headEl.getElementsByTagName('meta');
-      for(let i=0;i<metas.length;i++){
+      for (let i = 0; i < metas.length; i++) {
         const m = metas[i];
-        const t = (m.getAttribute('type')||'').toLowerCase();
-        const x=parseFloat(m.getAttribute('x')||0), y=parseFloat(m.getAttribute('y')||0), z=parseFloat(m.getAttribute('z')||0);
-        if(t==='position') meta.position = {x,y,z};
-        else if(t==='scale') meta.scale = {x,y,z};
-        else if(t==='rotation') meta.rotation = {x,y,z};
-        else if(t==='spawn'){
+        const t = (m.getAttribute('type') || '').toLowerCase();
+        const x = parseFloat(m.getAttribute('x') || 0), y = parseFloat(m.getAttribute('y') || 0), z = parseFloat(m.getAttribute('z') || 0);
+        if (t === 'position') meta.position = { x, y, z };
+        else if (t === 'scale') meta.scale = { x, y, z };
+        else if (t === 'rotation') meta.rotation = { x, y, z };
+        else if (t === 'spawn') {
           const yaw = parseFloat(m.getAttribute('yaw'));
           const pitch = parseFloat(m.getAttribute('pitch'));
-          meta.spawn = { x: m.hasAttribute('x')?x:undefined, y: m.hasAttribute('y')?y:undefined, z: m.hasAttribute('z')?z:undefined, yaw: isNaN(yaw)?undefined:yaw, pitch: isNaN(pitch)?undefined:pitch };
+          meta.spawn = { x: m.hasAttribute('x') ? x : undefined, y: m.hasAttribute('y') ? y : undefined, z: m.hasAttribute('z') ? z : undefined, yaw: isNaN(yaw) ? undefined : yaw, pitch: isNaN(pitch) ? undefined : pitch };
         }
       }
       const states = headEl.getElementsByTagName('state');
-      for(let i=0;i<states.length;i++){
+      for (let i = 0; i < states.length; i++) {
         const s = states[i];
-        const name = s.getAttribute('name')||'default';
+        const name = s.getAttribute('name') || 'default';
         const def = s.getAttribute('default');
         globalState[name] = def;
       }
       const lights = headEl.getElementsByTagName('light');
-      for(let i=0;i<lights.length;i++){
+      for (let i = 0; i < lights.length; i++) {
         const vnode = parseHSML(lights[i]);
-        if(vnode) extraChildren.push(vnode);
+        if (vnode) extraChildren.push(vnode);
       }
       return { meta, extraChildren };
     }
 
-    function parseHSMLRootFromString(hsml){
-      const parser=new DOMParser(); const xml=parser.parseFromString(hsml, 'text/xml');
+    function parseHSMLRootFromString(hsml) {
+      const parser = new DOMParser(); const xml = parser.parseFromString(hsml, 'text/xml');
       let hsmlEl = xml.getElementsByTagName('hsml')[0];
-      if(hsmlEl){
-        const head = hsmlEl.getElementsByTagName('head')[0]||null;
+      if (hsmlEl) {
+        const head = hsmlEl.getElementsByTagName('head')[0] || null;
         const spaceXML = hsmlEl.getElementsByTagName('space')[0];
-        if(!spaceXML) return { vnode:null };
+        if (!spaceXML) return { vnode: null };
         const { meta, extraChildren } = extractHeadData(head);
         const vnode = parseHSML(spaceXML);
-        if(meta.position){ vnode.setAttribute('x', meta.position.x); vnode.setAttribute('y', meta.position.y); vnode.setAttribute('z', meta.position.z); }
-        if(meta.scale && meta.scale.x===meta.scale.y && meta.scale.y===meta.scale.z){ vnode.setAttribute('scale', meta.scale.x); }
-        if(meta.rotation){ vnode.setAttribute('rx', meta.rotation.x); vnode.setAttribute('ry', meta.rotation.y); vnode.setAttribute('rz', meta.rotation.z); }
+        if (meta.position) { vnode.setAttribute('x', meta.position.x); vnode.setAttribute('y', meta.position.y); vnode.setAttribute('z', meta.position.z); }
+        if (meta.scale && meta.scale.x === meta.scale.y && meta.scale.y === meta.scale.z) { vnode.setAttribute('scale', meta.scale.x); }
+        if (meta.rotation) { vnode.setAttribute('rx', meta.rotation.x); vnode.setAttribute('ry', meta.rotation.y); vnode.setAttribute('rz', meta.rotation.z); }
         vnode.children = [...extraChildren, ...vnode.children];
         return { vnode, meta };
       } else {
         const spaceXML = xml.getElementsByTagName('space')[0];
-        if(!spaceXML) return { vnode:null };
-        return { vnode: parseHSML(spaceXML), meta: { position:null, scale:null, rotation:null, spawn:null } };
+        if (!spaceXML) return { vnode: null };
+        return { vnode: parseHSML(spaceXML), meta: { position: null, scale: null, rotation: null, spawn: null } };
       }
     }
 
@@ -273,14 +519,14 @@
     const mixers = new Set();
 
     const gltfCache = new Map();
-    async function getGLTF(src){
-      if(gltfCache.has(src)){
+    async function getGLTF(src) {
+      if (gltfCache.has(src)) {
         const { scene, animations } = gltfCache.get(src);
         return { scene: scene.clone(true), animations: animations.slice() };
       }
       const loader = new GLTFLoader();
-      return new Promise((resolve,reject)=>{
-        loader.load(src, (gltf)=>{
+      return new Promise((resolve, reject) => {
+        loader.load(src, (gltf) => {
           const pack = { scene: gltf.scene, animations: gltf.animations || [] };
           gltfCache.set(src, pack);
           resolve({ scene: pack.scene.clone(true), animations: pack.animations.slice() });
@@ -288,38 +534,38 @@
       });
     }
 
-    const animByKey = new Map(); 
-    function initAnimFor(key, root, clips=[]){
+    const animByKey = new Map();
+    function initAnimFor(key, root, clips = []) {
       const mixer = new THREE.AnimationMixer(root);
       mixers.add(mixer);
-      const st = { mixer, root, clips:new Map(), actions:new Map(), timeScale:1 };
-      for(const c of (clips||[])){
+      const st = { mixer, root, clips: new Map(), actions: new Map(), timeScale: 1 };
+      for (const c of (clips || [])) {
         st.clips.set(c.name || `clip${st.clips.size}`, c);
       }
       animByKey.set(key, st);
       return st;
     }
-    function getAnimStateByVNode(v){
-      if(!v) return null;
+    function getAnimStateByVNode(v) {
+      if (!v) return null;
       return animByKey.get(v.key) || null;
     }
-    function disposeAnimForKey(key){
+    function disposeAnimForKey(key) {
       const st = animByKey.get(key);
-      if(!st) return;
-      try{ st.actions.forEach(a=>a.stop()); }catch(_){}
+      if (!st) return;
+      try { st.actions.forEach(a => a.stop()); } catch (_) { }
       mixers.delete(st.mixer);
       animByKey.delete(key);
     }
 
-    function getDefaultMaterial(attrs){
+    function getDefaultMaterial(attrs) {
       const color = attrs.color ? new THREE.Color(attrs.color) : new THREE.Color('#cccccc');
-      const mat = lightingEnabled ? new THREE.MeshStandardMaterial({ color, metalness: parseFloat(attrs.metalness ?? 0), roughness: parseFloat(attrs.roughness ?? 1), emissive: new THREE.Color(attrs.emissive||'#000000') }) : new THREE.MeshBasicMaterial({ color });
-      if (attrs.texture) new THREE.TextureLoader().load(attrs.texture, tex => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; mat.map = tex; mat.needsUpdate = true; });
+      const mat = lightingEnabled ? new THREE.MeshStandardMaterial({ color, metalness: parseFloat(attrs.metalness ?? 0), roughness: parseFloat(attrs.roughness ?? 1), emissive: new THREE.Color(attrs.emissive || '#000000') }) : new THREE.MeshBasicMaterial({ color });
+      if (attrs.texture) new THREE.TextureLoader().load(attrs.texture, tex => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; mat.map = tex; mat.needsUpdate = true; });
       return mat;
     }
 
     // ----------------- Text/HTML helpers -----------------
-    function drawWrappedTextCanvas(text, opts={}){
+    function drawWrappedTextCanvas(text, opts = {}) {
       const fontSize = parseInt(opts.fontSize ?? 48);
       const fontFamily = String(opts.fontFamily ?? 'sans-serif');
       const color = String(opts.color ?? '#ffffff');
@@ -330,35 +576,35 @@
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       ctx.font = `${fontSize}px ${fontFamily}`;
-      const words = String(text||'').split(/\s+/);
+      const words = String(text || '').split(/\s+/);
       const lines = [];
       let line = '';
-      const testWidth = (s)=> ctx.measureText(s).width;
-      for(let i=0;i<words.length;i++){
-        const test = line ? (line+' '+words[i]) : words[i];
-        if (testWidth(test) <= maxWidth) line = test; else { if(line) lines.push(line); line = words[i]; }
+      const testWidth = (s) => ctx.measureText(s).width;
+      for (let i = 0; i < words.length; i++) {
+        const test = line ? (line + ' ' + words[i]) : words[i];
+        if (testWidth(test) <= maxWidth) line = test; else { if (line) lines.push(line); line = words[i]; }
       }
       if (line) lines.push(line);
-      const textWidth = Math.min(maxWidth, Math.max(...lines.map(s=>testWidth(s)), 1));
+      const textWidth = Math.min(maxWidth, Math.max(...lines.map(s => testWidth(s)), 1));
       const textHeight = Math.max(1, Math.ceil(lines.length * fontSize * lineHeight));
-      canvas.width = Math.ceil(textWidth + padding*2);
-      canvas.height = Math.ceil(textHeight + padding*2);
+      canvas.width = Math.ceil(textWidth + padding * 2);
+      canvas.height = Math.ceil(textHeight + padding * 2);
       const ratio = window.devicePixelRatio || 1;
       canvas.width *= ratio; canvas.height *= ratio;
-      canvas.style.width = (canvas.width/ratio)+'px';
-      canvas.style.height = (canvas.height/ratio)+'px';
+      canvas.style.width = (canvas.width / ratio) + 'px';
+      canvas.style.height = (canvas.height / ratio) + 'px';
       ctx.scale(ratio, ratio);
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      if (bg){ ctx.fillStyle = bg; ctx.fillRect(0,0,canvas.width/ratio,canvas.height/ratio); }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width / ratio, canvas.height / ratio); }
       ctx.fillStyle = color;
       ctx.font = `${fontSize}px ${fontFamily}`;
       ctx.textBaseline = 'top';
       const x = padding, startY = padding; let y = startY;
-      for(const ln of lines){ ctx.fillText(ln, x, y); y += fontSize*lineHeight; }
-      return { canvas, widthPx: canvas.width/ratio, heightPx: canvas.height/ratio };
+      for (const ln of lines) { ctx.fillText(ln, x, y); y += fontSize * lineHeight; }
+      return { canvas, widthPx: canvas.width / ratio, heightPx: canvas.height / ratio };
     }
 
-    function createTextPlane(attrs, kind='text'){
+    function createTextPlane(attrs, kind = 'text') {
       const opts = {
         fontSize: parseInt(attrs.fontsize ?? attrs.fontSize ?? 48),
         fontFamily: attrs.font || 'sans-serif',
@@ -367,23 +613,23 @@
         maxWidth: parseInt(attrs.maxwidth ?? attrs.maxWidth ?? 1024),
         lineHeight: parseFloat(attrs.lineheight ?? 1.2),
       };
-      const contentRaw = kind==='html' ? (attrs.html || attrs.text || '') : (attrs.text || '');
-      const content = kind==='html' ? String(contentRaw).replace(/<br\s*\/\?\s*>/gi, '\n').replace(/<[^>]+>/g,'') : String(contentRaw);
+      const contentRaw = kind === 'html' ? (attrs.html || attrs.text || '') : (attrs.text || '');
+      const content = kind === 'html' ? String(contentRaw).replace(/<br\s*\/\?\s*>/gi, '\n').replace(/<[^>]+>/g, '') : String(contentRaw);
       const drawn = drawWrappedTextCanvas(content, opts);
       const texture = new THREE.CanvasTexture(drawn.canvas); texture.colorSpace = THREE.SRGBColorSpace;
-      const material = new THREE.MeshBasicMaterial({ map:texture, transparent:true });
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
       const unitsPerPx = parseFloat(attrs.unitsperpx ?? 0.002);
-      const w = parseFloat(attrs.width ?? (drawn.widthPx*unitsPerPx));
-      const h = parseFloat(attrs.height ?? (drawn.heightPx*unitsPerPx));
-      const geo = new THREE.PlaneGeometry(Math.max(1e-3,w), Math.max(1e-3,h));
+      const w = parseFloat(attrs.width ?? (drawn.widthPx * unitsPerPx));
+      const h = parseFloat(attrs.height ?? (drawn.heightPx * unitsPerPx));
+      const geo = new THREE.PlaneGeometry(Math.max(1e-3, w), Math.max(1e-3, h));
       const mesh = new THREE.Mesh(geo, material);
       mesh.userData.kind = kind;
       mesh.userData._content = content;
       mesh.userData._opts = opts;
       mesh.userData._unitsPerPx = unitsPerPx;
-      mesh.userData.updateContent = (newAttrs)=>{
-        const nextRaw = kind==='html' ? (newAttrs.html || newAttrs.text || '') : (newAttrs.text || '');
-        const next = kind==='html' ? String(nextRaw).replace(/<br\s*\/\?\s*>/gi, '\n').replace(/<[^>]+>/g,'') : String(nextRaw);
+      mesh.userData.updateContent = (newAttrs) => {
+        const nextRaw = kind === 'html' ? (newAttrs.html || newAttrs.text || '') : (newAttrs.text || '');
+        const next = kind === 'html' ? String(nextRaw).replace(/<br\s*\/\?\s*>/gi, '\n').replace(/<[^>]+>/g, '') : String(nextRaw);
         const o = {
           fontSize: parseInt(newAttrs.fontsize ?? newAttrs.fontSize ?? mesh.userData._opts.fontSize),
           fontFamily: newAttrs.font || mesh.userData._opts.fontFamily,
@@ -396,50 +642,50 @@
         mesh.material.map.dispose();
         mesh.material.map = new THREE.CanvasTexture(d.canvas); mesh.material.map.colorSpace = THREE.SRGBColorSpace; mesh.material.needsUpdate = true;
         const unitsPerPx = parseFloat(newAttrs.unitsperpx ?? mesh.userData._unitsPerPx);
-        const w = parseFloat(newAttrs.width ?? (d.widthPx*unitsPerPx));
-        const h = parseFloat(newAttrs.height ?? (d.heightPx*unitsPerPx));
-        mesh.geometry.dispose(); mesh.geometry = new THREE.PlaneGeometry(Math.max(1e-3,w), Math.max(1e-3,h));
+        const w = parseFloat(newAttrs.width ?? (d.widthPx * unitsPerPx));
+        const h = parseFloat(newAttrs.height ?? (d.heightPx * unitsPerPx));
+        mesh.geometry.dispose(); mesh.geometry = new THREE.PlaneGeometry(Math.max(1e-3, w), Math.max(1e-3, h));
         mesh.userData._content = next; mesh.userData._opts = o; mesh.userData._unitsPerPx = unitsPerPx;
       };
       return mesh;
     }
 
     // ----------------- Video helper -----------------
-    function createVideoPlane(attrs){
+    function createVideoPlane(attrs) {
       const wAttr = parseFloat(attrs.width ?? 1.6);
       const hAttr = parseFloat(attrs.height ?? 0.9);
       const geo = new THREE.PlaneGeometry(wAttr, hAttr);
       const video = document.createElement('video');
       if (attrs.src) video.src = attrs.src;
-      video.autoplay = String(attrs.autoplay ?? 'true').toLowerCase()!=='false';
-      video.loop = String(attrs.loop ?? 'true').toLowerCase()!=='false';
-      video.muted = String(attrs.muted ?? 'true').toLowerCase()!=='false';
+      video.autoplay = String(attrs.autoplay ?? 'true').toLowerCase() !== 'false';
+      video.loop = String(attrs.loop ?? 'true').toLowerCase() !== 'false';
+      video.muted = String(attrs.muted ?? 'true').toLowerCase() !== 'false';
       video.playsInline = true;
       const tex = new THREE.VideoTexture(video); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true;
       const mat = new THREE.MeshBasicMaterial({ map: tex });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.userData.kind = 'video';
       mesh.userData._video = video;
-      mesh.userData.updateFromAttrs = (newAttrs)=>{
+      mesh.userData.updateFromAttrs = (newAttrs) => {
         const v = mesh.userData._video;
-        if(newAttrs.src && newAttrs.src!==v.src){ v.src = newAttrs.src; if(v.autoplay) v.play().catch(()=>{}); }
-        v.autoplay = String(newAttrs.autoplay ?? v.autoplay).toLowerCase()!=='false';
-        v.loop = String(newAttrs.loop ?? v.loop).toLowerCase()!=='false';
-        v.muted = String(newAttrs.muted ?? v.muted).toLowerCase()!=='false';
+        if (newAttrs.src && newAttrs.src !== v.src) { v.src = newAttrs.src; if (v.autoplay) v.play().catch(() => { }); }
+        v.autoplay = String(newAttrs.autoplay ?? v.autoplay).toLowerCase() !== 'false';
+        v.loop = String(newAttrs.loop ?? v.loop).toLowerCase() !== 'false';
+        v.muted = String(newAttrs.muted ?? v.muted).toLowerCase() !== 'false';
       };
-      video.addEventListener('loadedmetadata', ()=>{
-        const aspect = (video.videoWidth||16)/(video.videoHeight||9);
+      video.addEventListener('loadedmetadata', () => {
+        const aspect = (video.videoWidth || 16) / (video.videoHeight || 9);
         let w = parseFloat(attrs.width ?? (1.6));
-        let h = parseFloat(attrs.height ?? (w/aspect));
+        let h = parseFloat(attrs.height ?? (w / aspect));
         mesh.geometry.dispose(); mesh.geometry = new THREE.PlaneGeometry(w, h);
       });
-      if (video.autoplay) video.play().catch(()=>{});
+      if (video.autoplay) video.play().catch(() => { });
       return mesh;
     }
 
-    function clearColliders(){ staticColliders.length=0; keyToCollider.clear(); }
+    function clearColliders() { staticColliders.length = 0; keyToCollider.clear(); }
 
-    function isColliderEnabled(attrs){
+    function isColliderEnabled(attrs) {
       if (attrs.collider === undefined) return false;
       const val = String(attrs.collider).toLowerCase().trim();
       if (val === '' || val === 'true' || val === '1' || val === 'yes' || val === 'on') return true;
@@ -448,20 +694,20 @@
     }
 
     // Aplica transformaciones iniciales de atributos al objeto 3D
-    function applyAttrsToObject(obj, a){
+    function applyAttrsToObject(obj, a) {
       if (!a) return;
-      if (a.scale!==undefined){ const s=parseFloat(a.scale); if(!isNaN(s)) obj.scale.set(s,s,s); }
-      if (a.x!==undefined) obj.position.x = parseFloat(a.x)||0;
-      if (a.y!==undefined) obj.position.y = parseFloat(a.y)||0;
-      if (a.z!==undefined) obj.position.z = parseFloat(a.z)||0;
-      if (a.rx!==undefined) obj.rotation.x = parseFloat(a.rx)||0;
-      if (a.ry!==undefined) obj.rotation.y = parseFloat(a.ry)||0;
-      if (a.rz!==undefined) obj.rotation.z = parseFloat(a.rz)||0;
+      if (a.scale !== undefined) { const s = parseFloat(a.scale); if (!isNaN(s)) obj.scale.set(s, s, s); }
+      if (a.x !== undefined) obj.position.x = parseFloat(a.x) || 0;
+      if (a.y !== undefined) obj.position.y = parseFloat(a.y) || 0;
+      if (a.z !== undefined) obj.position.z = parseFloat(a.z) || 0;
+      if (a.rx !== undefined) obj.rotation.x = parseFloat(a.rx) || 0;
+      if (a.ry !== undefined) obj.rotation.y = parseFloat(a.ry) || 0;
+      if (a.rz !== undefined) obj.rotation.z = parseFloat(a.rz) || 0;
     }
 
     const keyToCollider = new Map();
 
-    function registerColliderFromAttrs(vnode, obj){
+    function registerColliderFromAttrs(vnode, obj) {
       const a = vnode.attributes || {};
       if (!isColliderEnabled(a)) return;
       // Asegurar que la matriz mundial esté actualizada antes de calcular el AABB
@@ -481,18 +727,18 @@
       return handle;
     }
 
-    async function buildSceneFromVirtual(vnode, parentObj){
-      let obj; const tag=vnode.tag; const a=vnode.attributes||{};
-      const classList=(a.class||'').split(/\s+/).filter(Boolean);
+    async function buildSceneFromVirtual(vnode, parentObj) {
+      let obj; const tag = vnode.tag; const a = vnode.attributes || {};
+      const classList = (a.class || '').split(/\s+/).filter(Boolean);
 
-      if (tag==='group' || tag==='space') { obj=new THREE.Object3D(); }
-      else if (tag==='include') {
+      if (tag === 'group' || tag === 'space') { obj = new THREE.Object3D(); }
+      else if (tag === 'include') {
         obj = new THREE.Object3D();
         obj.userData.kind = 'include';
         obj.userData.includeKeys = new Set();
         const includeUrl = a.src;
         const mountAttr = (a.mount ?? a.enabled ?? a.active);
-        const shouldMount = (mountAttr===undefined) ? true : !['false','0','off','no'].includes(String(mountAttr).toLowerCase());
+        const shouldMount = (mountAttr === undefined) ? true : !['false', '0', 'off', 'no'].includes(String(mountAttr).toLowerCase());
         obj.userData.includeMounted = false;
         if (includeUrl && shouldMount) {
           try {
@@ -501,7 +747,10 @@
             const parsed = parseHSMLRootFromString(text);
             const incRoot = parsed.vnode;
             if (incRoot) {
-              (incRoot.children || []).forEach(ch => { vnode.appendChild(ch); obj.userData.includeKeys.add(ch.key); });
+              (incRoot.children || []).forEach(ch => {
+                vnode.appendChild(ch); obj.userData.includeKeys.add(ch.key);
+                indexerAddSubtree(ch);
+              });
               obj.userData.includeSrc = includeUrl;
               obj.userData.includeBase = includeUrl;
               obj.userData.includeMounted = true;
@@ -550,47 +799,47 @@
           if (includeUrl) { obj.userData.includeSrc = includeUrl; obj.userData.includeBase = includeUrl; }
         }
       }
-      else if (tag==='model') {
+      else if (tag === 'model') {
         obj = new THREE.Object3D();
         const src = a.src;
-        if(src){
-          const ready = getGLTF(src).then(({ scene: child, animations })=>{
-            while(obj.children.length>0) obj.remove(obj.children[0]);
+        if (src) {
+          const ready = getGLTF(src).then(({ scene: child, animations }) => {
+            while (obj.children.length > 0) obj.remove(obj.children[0]);
             obj.add(child);
             initAnimFor(vnode.key, child, animations);
-          }).catch(err=>console.error('GLTF load error',src,err));
+          }).catch(err => console.error('GLTF load error', src, err));
           obj.userData.modelReady = ready;
         }
       }
-      else if (tag==='box') { const w=parseFloat(a.width??1), h=parseFloat(a.height??1), d=parseFloat(a.depth??1); const geo=new THREE.BoxGeometry(w,h,d); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
-      else if (tag==='sphere'){ const r=parseFloat(a.radius??0.5), ws=parseInt(a.widthSegments??16), hs=parseInt(a.heightSegments??12); const geo=new THREE.SphereGeometry(r,ws,hs); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
-      else if (tag==='plane'){ const w=parseFloat(a.width??5), h=parseFloat(a.height??5); const geo=new THREE.PlaneGeometry(w,h); const mesh=new THREE.Mesh(geo, getDefaultMaterial(a)); mesh.rotation.x=-Math.PI/2; obj=mesh; }
-      else if (tag==='text'){ obj=createTextPlane(a, 'text'); }
-      else if (tag==='html'){ obj=createTextPlane(a, 'html'); }
-      else if (tag==='video'){ obj=createVideoPlane(a); }
-      else if (tag==='light'){ const type=(a.type||'ambient').toLowerCase(); const color=new THREE.Color(a.color||'#ffffff'); const intensity=parseFloat(a.intensity??1); if (type==='ambient') obj=new THREE.AmbientLight(color,intensity); else if(type==='directional'){ obj=new THREE.DirectionalLight(color,intensity); obj.position.set(5,10,5); } else if(type==='point'){ obj=new THREE.PointLight(color,intensity, parseFloat(a.distance??0)); } else if(type==='hemisphere'){ obj=new THREE.HemisphereLight(0xffffff,0x444444,intensity); } else { obj=new THREE.Object3D(); } }
-      else if (tag==='audio'){
-        obj=new THREE.Object3D();
-        obj.userData.kind='audio';
-        obj.userData.audio=null;
-        obj.userData._audioState={ src:null, loop:false, autoplay:false, volume:0.7, positional:false, refDistance:8 };
-        function attachAudioFromAttrs(attrs){
-          const wantPos = String(attrs.positional).toLowerCase()==='true';
-          const vol = isNaN(parseFloat(attrs.volume))? 0.7 : parseFloat(attrs.volume);
-          const loop = String(attrs.loop).toLowerCase()==='true';
-          const auto = String(attrs.autoplay).toLowerCase()==='true';
-          const refD = isNaN(parseFloat(attrs.refDistance))? 8 : parseFloat(attrs.refDistance);
-          const src = attrs.src||null;
+      else if (tag === 'box') { const w = parseFloat(a.width ?? 1), h = parseFloat(a.height ?? 1), d = parseFloat(a.depth ?? 1); const geo = new THREE.BoxGeometry(w, h, d); obj = new THREE.Mesh(geo, getDefaultMaterial(a)); }
+      else if (tag === 'sphere') { const r = parseFloat(a.radius ?? 0.5), ws = parseInt(a.widthSegments ?? 16), hs = parseInt(a.heightSegments ?? 12); const geo = new THREE.SphereGeometry(r, ws, hs); obj = new THREE.Mesh(geo, getDefaultMaterial(a)); }
+      else if (tag === 'plane') { const w = parseFloat(a.width ?? 5), h = parseFloat(a.height ?? 5); const geo = new THREE.PlaneGeometry(w, h); const mesh = new THREE.Mesh(geo, getDefaultMaterial(a)); mesh.rotation.x = -Math.PI / 2; obj = mesh; }
+      else if (tag === 'text') { obj = createTextPlane(a, 'text'); }
+      else if (tag === 'html') { obj = createTextPlane(a, 'html'); }
+      else if (tag === 'video') { obj = createVideoPlane(a); }
+      else if (tag === 'light') { const type = (a.type || 'ambient').toLowerCase(); const color = new THREE.Color(a.color || '#ffffff'); const intensity = parseFloat(a.intensity ?? 1); if (type === 'ambient') obj = new THREE.AmbientLight(color, intensity); else if (type === 'directional') { obj = new THREE.DirectionalLight(color, intensity); obj.position.set(5, 10, 5); } else if (type === 'point') { obj = new THREE.PointLight(color, intensity, parseFloat(a.distance ?? 0)); } else if (type === 'hemisphere') { obj = new THREE.HemisphereLight(0xffffff, 0x444444, intensity); } else { obj = new THREE.Object3D(); } }
+      else if (tag === 'audio') {
+        obj = new THREE.Object3D();
+        obj.userData.kind = 'audio';
+        obj.userData.audio = null;
+        obj.userData._audioState = { src: null, loop: false, autoplay: false, volume: 0.7, positional: false, refDistance: 8 };
+        function attachAudioFromAttrs(attrs) {
+          const wantPos = String(attrs.positional).toLowerCase() === 'true';
+          const vol = isNaN(parseFloat(attrs.volume)) ? 0.7 : parseFloat(attrs.volume);
+          const loop = String(attrs.loop).toLowerCase() === 'true';
+          const auto = String(attrs.autoplay).toLowerCase() === 'true';
+          const refD = isNaN(parseFloat(attrs.refDistance)) ? 8 : parseFloat(attrs.refDistance);
+          const src = attrs.src || null;
           const st = obj.userData._audioState;
-          const needsRebuild = (st.positional!==wantPos) || (st.src!==src);
-          st.positional = wantPos; st.loop=loop; st.autoplay=auto; st.volume=vol; st.refDistance=refD; st.src=src;
-          if (!src) { if(obj.userData.audio){ try{ obj.userData.audio.stop(); }catch(_){}; obj.remove(obj.userData.audio); obj.userData.audio=null; } return; }
-          if (needsRebuild){
-            if (obj.userData.audio){ try{ obj.userData.audio.stop(); }catch(_){}; obj.remove(obj.userData.audio); obj.userData.audio=null; }
+          const needsRebuild = (st.positional !== wantPos) || (st.src !== src);
+          st.positional = wantPos; st.loop = loop; st.autoplay = auto; st.volume = vol; st.refDistance = refD; st.src = src;
+          if (!src) { if (obj.userData.audio) { try { obj.userData.audio.stop(); } catch (_) { }; obj.remove(obj.userData.audio); obj.userData.audio = null; } return; }
+          if (needsRebuild) {
+            if (obj.userData.audio) { try { obj.userData.audio.stop(); } catch (_) { }; obj.remove(obj.userData.audio); obj.userData.audio = null; }
             const a = wantPos ? new THREE.PositionalAudio(audioListener) : new THREE.Audio(audioListener);
             obj.add(a);
             obj.userData.audio = a;
-            audioLoader.load(src, buffer=>{
+            audioLoader.load(src, buffer => {
               if (!a || !a.parent) return;
               a.setBuffer(buffer);
               a.setLoop(loop);
@@ -600,7 +849,7 @@
             });
           } else {
             const a = obj.userData.audio;
-            if (a){
+            if (a) {
               a.setLoop(loop);
               a.setVolume(vol);
               if (wantPos && a.setRefDistance) a.setRefDistance(refD);
@@ -611,30 +860,31 @@
         obj.userData.updateFromAttrs = attachAudioFromAttrs;
         attachAudioFromAttrs(a);
       }
-      else { obj=new THREE.Object3D(); }
+      else { obj = new THREE.Object3D(); }
 
       applyAttrsToObject(obj, a);
 
-      if (String(a.visible).toLowerCase()==='false') obj.visible = false;
+      if (String(a.visible).toLowerCase() === 'false') obj.visible = false;
 
       obj.userData.key = vnode.key; parentObj.add(obj); nodeKeyToObject.set(vnode.key, obj);
       if (interactiveKeys.has(vnode.key)) interactiveObjects.add(obj);
 
-      for(const child of vnode.children){ await buildSceneFromVirtual(child, obj); }
+      for (const child of vnode.children) { await buildSceneFromVirtual(child, obj); }
 
       const behaviors = new Set(classList);
-      if (behaviors.has('spin')) userUpdateFunctions.add((dt)=>{ vnode.attributes.ry = (parseFloat(vnode.attributes.ry||0)+dt)% (Math.PI*2); markDirty(vnode); });
-      if (behaviors.has('pulse')) { let t=0; const amp=parseFloat(a.amp||0.6), speed=parseFloat(a.speed||1.5), y0=parseFloat(a.y||0); userUpdateFunctions.add(dt=>{ t+=dt*speed; vnode.attributes.y = (y0 + Math.sin(t)*amp).toFixed(5); markDirty(vnode); }); }
+      if (behaviors.has('spin')) userUpdateFunctions.add((dt) => { vnode.attributes.ry = (parseFloat(vnode.attributes.ry || 0) + dt) % (Math.PI * 2); markDirty(vnode); });
+      if (behaviors.has('pulse')) { let t = 0; const amp = parseFloat(a.amp || 0.6), speed = parseFloat(a.speed || 1.5), y0 = parseFloat(a.y || 0); userUpdateFunctions.add(dt => { t += dt * speed; vnode.attributes.y = (y0 + Math.sin(t) * amp).toFixed(5); markDirty(vnode); }); }
 
       registerColliderFromAttrs(vnode, obj);
     }
 
     // Actualiza en vivo un <include> cuando cambia su atributo src (sin cambios radicales)
-    async function updateIncludeFor(vnode, obj, newSrc){
+    async function updateIncludeFor(vnode, obj, newSrc) {
       try {
         const keys = obj.userData?.includeKeys || new Set();
         if (keys.size) {
           for (const k of keys) {
+            deindexByKey(k);
             removeNodeByKey(virtualDOM, k);
             const o = nodeKeyToObject.get(k);
             if (o) { stopAudioRecursive(o); if (o.parent) o.parent.remove(o); }
@@ -653,15 +903,22 @@
         }
 
         let abs = newSrc;
-        try { if (!/^https?:\/\//i.test(newSrc)) { const base = obj.userData?.includeBase || (lastHSMLSource && lastHSMLSource.type==='url' ? lastHSMLSource.value : location.href); abs = new URL(newSrc, base).toString(); } } catch(_) {}
+        try { if (!/^https?:\/\//i.test(newSrc)) { const base = obj.userData?.includeBase || (lastHSMLSource && lastHSMLSource.type === 'url' ? lastHSMLSource.value : location.href); abs = new URL(newSrc, base).toString(); } } catch (_) { }
 
         const res = await fetch(abs);
         const text = await res.text();
         const parsed = parseHSMLRootFromString(text);
         const incRoot = parsed.vnode;
         if (incRoot) {
-          (incRoot.children || []).forEach(ch => { vnode.children.push(ch); (obj.userData.includeKeys||=new Set()).add(ch.key); });
-          for (const ch of incRoot.children) { await buildSceneFromVirtual(ch, obj); }
+          (incRoot.children || []).forEach(ch => {
+            vnode.children.push(ch);
+            indexerAddSubtree(ch);
+            (obj.userData.includeKeys ||= new Set()).add(ch.key);
+          });
+          for (const ch of incRoot.children) {
+            await buildSceneFromVirtual(ch, obj);
+            indexerAddSubtree(ch);
+          }
           obj.userData.includeSrc = newSrc;
           obj.userData.includeBase = abs;
 
@@ -674,58 +931,58 @@
             if (hsmlEl) scriptNodes = Array.from(hsmlEl.getElementsByTagName('script'));
             else { const spaceEl = xml.getElementsByTagName('space')[0] || null; if (spaceEl) scriptNodes = Array.from(spaceEl.getElementsByTagName('script')); }
             if (scriptNodes.length) {
-              const includeState = {}; const attrs = vnode.attributes||{};
-              for (const k in attrs){ if (k && k.startsWith('data-')){ includeState[k.slice(5)] = attrs[k]; } }
+              const includeState = {}; const attrs = vnode.attributes || {};
+              for (const k in attrs) { if (k && k.startsWith('data-')) { includeState[k.slice(5)] = attrs[k]; } }
               for (const node of scriptNodes) {
                 const ssrc = node.getAttribute('src');
                 const codeAttr = node.getAttribute('code');
                 const inline = (node.textContent || '').trim();
                 if (ssrc) {
                   const absScript = new URL(ssrc, abs).toString();
-                  fetch(absScript).then(r=>r.text()).then(code=>runSandboxWithState(code, includeState)).catch(err=>console.error('Script load error', absScript, err));
+                  fetch(absScript).then(r => r.text()).then(code => runSandboxWithState(code, includeState)).catch(err => console.error('Script load error', absScript, err));
                 } else if (codeAttr && codeAttr.trim()) { runSandboxWithState(codeAttr, includeState); }
                 else if (inline) { runSandboxWithState(inline, includeState); }
               }
             }
-          } catch(e){ console.error('Include script error', abs, e); }
+          } catch (e) { console.error('Include script error', abs, e); }
           reindexVirtualDOM();
           scheduleDevToolUpdate();
         } else {
           obj.userData.includeSrc = newSrc;
           obj.userData.includeBase = abs;
         }
-      } catch(e){ console.error('updateIncludeFor error', e); }
+      } catch (e) { console.error('updateIncludeFor error', e); }
     }
 
-    function applyDirtyOnce(){
+    function applyDirtyOnce() {
       if (!dirtyNodes.size) return;
-      for (const key of dirtyNodes){
+      for (const key of dirtyNodes) {
         const vnode = keyToVNode.get(key);
-        const obj   = nodeKeyToObject.get(key);
+        const obj = nodeKeyToObject.get(key);
         if (!vnode || !obj) continue;
-        const a = vnode.attributes||{};
+        const a = vnode.attributes || {};
 
-        if (a.scale!==undefined){ const s=parseFloat(a.scale); if(!isNaN(s)) obj.scale.set(s,s,s); }
-        if (a.x!==undefined) obj.position.x = parseFloat(a.x)||0;
-        if (a.y!==undefined) obj.position.y = parseFloat(a.y)||0;
-        if (a.z!==undefined) obj.position.z = parseFloat(a.z)||0;
-        if (a.rx!==undefined) obj.rotation.x = parseFloat(a.rx)||0;
-        if (a.ry!==undefined) obj.rotation.y = parseFloat(a.ry)||0;
-        if (a.rz!==undefined) obj.rotation.z = parseFloat(a.rz)||0;
+        if (a.scale !== undefined) { const s = parseFloat(a.scale); if (!isNaN(s)) obj.scale.set(s, s, s); }
+        if (a.x !== undefined) obj.position.x = parseFloat(a.x) || 0;
+        if (a.y !== undefined) obj.position.y = parseFloat(a.y) || 0;
+        if (a.z !== undefined) obj.position.z = parseFloat(a.z) || 0;
+        if (a.rx !== undefined) obj.rotation.x = parseFloat(a.rx) || 0;
+        if (a.ry !== undefined) obj.rotation.y = parseFloat(a.ry) || 0;
+        if (a.rz !== undefined) obj.rotation.z = parseFloat(a.rz) || 0;
 
-        if (a.color!==undefined){
+        if (a.color !== undefined) {
           const col = new THREE.Color(a.color);
-          if (obj.isLight && obj.color){ obj.color.copy(col); }
-          else if (obj.isMesh && obj.material && obj.material.color){ obj.material.color.copy(col); obj.material.needsUpdate=true; }
-          else { obj.traverse(n=>{ if(n.isMesh && n.material && n.material.color){ n.material.color.copy(col); n.material.needsUpdate=true; } if(n.isLight && n.color){ n.color.copy(col); } }); }
+          if (obj.isLight && obj.color) { obj.color.copy(col); }
+          else if (obj.isMesh && obj.material && obj.material.color) { obj.material.color.copy(col); obj.material.needsUpdate = true; }
+          else { obj.traverse(n => { if (n.isMesh && n.material && n.material.color) { n.material.color.copy(col); n.material.needsUpdate = true; } if (n.isLight && n.color) { n.color.copy(col); } }); }
         }
-        if (obj.userData && (obj.userData.kind==='text' || obj.userData.kind==='html') && typeof obj.userData.updateContent==='function'){
-          if (a.text!==undefined || a.html!==undefined || a.font!==undefined || a.fontSize!==undefined || a.maxwidth!==undefined || a.lineheight!==undefined || a.bg!==undefined || a.color!==undefined){
+        if (obj.userData && (obj.userData.kind === 'text' || obj.userData.kind === 'html') && typeof obj.userData.updateContent === 'function') {
+          if (a.text !== undefined || a.html !== undefined || a.font !== undefined || a.fontSize !== undefined || a.maxwidth !== undefined || a.lineheight !== undefined || a.bg !== undefined || a.color !== undefined) {
             obj.userData.updateContent(a);
           }
         }
-        if (obj.userData && obj.userData.kind==='video' && typeof obj.userData.updateFromAttrs==='function'){
-          if (a.src!==undefined || a.autoplay!==undefined || a.loop!==undefined || a.muted!==undefined){
+        if (obj.userData && obj.userData.kind === 'video' && typeof obj.userData.updateFromAttrs === 'function') {
+          if (a.src !== undefined || a.autoplay !== undefined || a.loop !== undefined || a.muted !== undefined) {
             obj.userData.updateFromAttrs(a);
           }
         }
@@ -733,9 +990,9 @@
       dirtyNodes.clear();
     }
 
-    function updateDirtyColliders(){
+    function updateDirtyColliders() {
       if (!dirtyColliders.size) return;
-      for (const key of dirtyColliders){
+      for (const key of dirtyColliders) {
         const col = keyToCollider.get(key);
         if (!col) continue;
         col.object.updateMatrixWorld(true);
@@ -747,31 +1004,52 @@
     }
 
     // ----------------- DevTools -----------------
-    function updateDevTool(){ const treeView=document.getElementById('treeView'); treeView.innerHTML=''; if(!virtualDOM) return; const domTree=buildVirtualTreeHTML(virtualDOM); if(domTree) treeView.appendChild(domTree); }
-    function buildVirtualTreeHTML(vnode){ const li=document.createElement('li'); const header=document.createElement('div'); header.style.display='flex'; header.style.flexWrap='wrap'; header.style.alignItems='center'; const tagSpan=document.createElement('span'); tagSpan.textContent=`<${vnode.tag}>`; header.appendChild(tagSpan); for(const an in vnode.attributes){ const av=vnode.attributes[an]; const label=document.createElement('span'); label.classList.add('attrLabel'); label.textContent=` ${an}="`; const inp=document.createElement('span'); inp.classList.add('attrInput'); inp.contentEditable=true; inp.textContent=av; inp.addEventListener('blur',()=>{ vnode.attributes[an]=inp.textContent.trim(); markDirty(vnode); scheduleDevToolUpdate(); }); label.appendChild(inp); const q=document.createElement('span'); q.textContent='"'; label.appendChild(q); header.appendChild(label); } const centerBtn=document.createElement('button'); centerBtn.textContent='Centrar'; centerBtn.classList.add('actionBtn'); centerBtn.addEventListener('click',e=>{ e.stopPropagation(); scene.traverse(obj=>{ if(obj.userData && obj.userData.key===vnode.key) centerCameraOnObject(obj); }); }); header.appendChild(centerBtn); const removeBtn=document.createElement('button'); removeBtn.textContent='Eliminar'; removeBtn.classList.add('actionBtn'); removeBtn.addEventListener('click',e=>{ e.stopPropagation(); removeNodeByKey(virtualDOM, vnode.key); const obj=nodeKeyToObject.get(vnode.key); if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); } nodeKeyToObject.delete(vnode.key); // (6) limpiar animación
-      disposeAnimForKey(vnode.key);
-      scheduleDevToolUpdate(); }); header.appendChild(removeBtn); li.appendChild(header); if(vnode.children.length>0){ const ul=document.createElement('ul'); vnode.children.forEach(ch=>{ const c=buildVirtualTreeHTML(ch); if(c) ul.appendChild(c); }); li.appendChild(ul); } return li; }
-    function removeNodeByKey(rootVNode,key){ if(!rootVNode||!rootVNode.children) return false; for(let i=0;i<rootVNode.children.length;i++){ if(rootVNode.children[i].key===key){ rootVNode.children.splice(i,1); return true; } else { if(removeNodeByKey(rootVNode.children[i],key)) return true; } } return false; }
-    function centerCameraOnObject(obj){ const pos=new THREE.Vector3(); obj.getWorldPosition(pos); player.position.set(pos.x, player.position.y, pos.z+5); yaw = Math.atan2((player.position.x - pos.x), (player.position.z - pos.z)); if(!input.isXR){ camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z); }
+    function updateDevTool() { const treeView = document.getElementById('treeView'); treeView.innerHTML = ''; if (!virtualDOM) return; const domTree = buildVirtualTreeHTML(virtualDOM); if (domTree) treeView.appendChild(domTree); }
+    function buildVirtualTreeHTML(vnode) {
+      const li = document.createElement('li'); const header = document.createElement('div'); header.style.display = 'flex'; header.style.flexWrap = 'wrap'; header.style.alignItems = 'center'; const tagSpan = document.createElement('span'); tagSpan.textContent = `<${vnode.tag}>`; header.appendChild(tagSpan); for (const an in vnode.attributes) { const av = vnode.attributes[an]; const label = document.createElement('span'); label.classList.add('attrLabel'); label.textContent = ` ${an}="`;
+        const inp = document.createElement('span'); inp.classList.add('attrInput'); inp.contentEditable = true; inp.textContent = av;
+        inp.addEventListener('blur', () => {
+          const prox = createProxiedNode(vnode);
+          prox.setAttribute(an, inp.textContent.trim()); 
+        }); label.appendChild(inp); const q = document.createElement('span'); q.textContent = '"'; label.appendChild(q); header.appendChild(label); } const centerBtn = document.createElement('button'); centerBtn.textContent = 'Centrar'; centerBtn.classList.add('actionBtn');
+        centerBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          scene.traverse(obj => {
+            if (obj.userData && obj.userData.key === vnode.key) centerCameraOnObject(obj);
+          });
+        }); header.appendChild(centerBtn); const removeBtn = document.createElement('button'); removeBtn.textContent = 'Eliminar'; removeBtn.classList.add('actionBtn');
+        removeBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          deindexByKey(vnode.key); // <— desindexar en caliente
+          removeNodeByKey(virtualDOM, vnode.key);
+          const obj=nodeKeyToObject.get(vnode.key);
+          if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); }
+          nodeKeyToObject.delete(vnode.key);
+          disposeAnimForKey(vnode.key);
+          scheduleDevToolUpdate();
+      }); header.appendChild(removeBtn); li.appendChild(header); if (vnode.children.length > 0) { const ul = document.createElement('ul'); vnode.children.forEach(ch => { const c = buildVirtualTreeHTML(ch); if (c) ul.appendChild(c); }); li.appendChild(ul); } return li;
+    }
+    function removeNodeByKey(rootVNode, key) { if (!rootVNode || !rootVNode.children) return false; for (let i = 0; i < rootVNode.children.length; i++) { if (rootVNode.children[i].key === key) { rootVNode.children.splice(i, 1); return true; } else { if (removeNodeByKey(rootVNode.children[i], key)) return true; } } return false; }
+    function centerCameraOnObject(obj) { const pos = new THREE.Vector3(); obj.getWorldPosition(pos); player.position.set(pos.x, player.position.y, pos.z + 5); yaw = Math.atan2((player.position.x - pos.x), (player.position.z - pos.z)); if (!input.isXR) { camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z); }
 
     // ----------------- Render/Scene Setup -----------------
-    const canvas=document.getElementById('canvas');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias:false, powerPreference:'high-performance' });
+    const canvas = document.getElementById('canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
     const DPR_CAP = 1.5; // limitar DPI para rendimiento
     renderer.setPixelRatio(Math.min(DPR_CAP, window.devicePixelRatio || 1));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled=true; renderer.xr.setReferenceSpaceType('local-floor');
-    const vrButton=VRButton.createButton(renderer); document.getElementById('toolbar').appendChild(vrButton);
+    renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
+    const vrButton = VRButton.createButton(renderer); document.getElementById('toolbar').appendChild(vrButton);
 
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x202020);
 
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 2000);
 
     // PATCH: giro seguro alrededor del visor (head-locked yaw)
     const _tmpHeadBefore = new THREE.Vector3();
-    const _tmpHeadAfter  = new THREE.Vector3();
+    const _tmpHeadAfter = new THREE.Vector3();
 
-    function yawRigAroundViewer(deltaYaw){
+    function yawRigAroundViewer(deltaYaw) {
       // Sin sesión XR: rotación simple del rig
       if (!renderer.xr.isPresenting) {
         xrRig.rotateY(deltaYaw);
@@ -795,10 +1073,10 @@
     scene.add(xrRig);
     xrRig.add(camera);
 
-    window.addEventListener('resize', ()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); dirLight.position.set(4,10,6);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2); dirLight.position.set(4, 10, 6);
     scene.add(ambientLight); scene.add(dirLight); scene.add(gridHelper); scene.add(axesHelper);
 
     // ----------------- Audio helpers -----------------
@@ -808,80 +1086,80 @@
 
     // PATCH: registro global de one-shots + apagado total
     const activeOneShots = new Set();
-    function stopAllAudio(){
-      try{
-        scene.traverse(n=>{
-          if(n && n.isAudio){ try{ n.stop(); }catch(_){} }
-          if(n && n.userData && n.userData.audio){ try{ n.userData.audio.stop(); }catch(_){} }
+    function stopAllAudio() {
+      try {
+        scene.traverse(n => {
+          if (n && n.isAudio) { try { n.stop(); } catch (_) { } }
+          if (n && n.userData && n.userData.audio) { try { n.userData.audio.stop(); } catch (_) { } }
         });
-      }catch(_){}
-      activeOneShots.forEach(a=>{ try{ a.stop(); }catch(_){} });
+      } catch (_) { }
+      activeOneShots.forEach(a => { try { a.stop(); } catch (_) { } });
       activeOneShots.clear();
     }
 
     // PATCH: one-shot seguro y autoclean
-    function playSoundOneShot(url, volume=0.7){
+    function playSoundOneShot(url, volume = 0.7) {
       const s = new THREE.Audio(audioListener);
       activeOneShots.add(s);
-      audioLoader.load(url, buffer=>{
-        if(!s) return;
-        try{
+      audioLoader.load(url, buffer => {
+        if (!s) return;
+        try {
           s.setBuffer(buffer);
           s.setVolume(volume);
           s.play();
-          if (s.source && typeof s.source.addEventListener === 'function'){
-            s.source.addEventListener('ended', ()=>{ activeOneShots.delete(s); }, { once:true });
+          if (s.source && typeof s.source.addEventListener === 'function') {
+            s.source.addEventListener('ended', () => { activeOneShots.delete(s); }, { once: true });
           } else {
-            const ms = Math.max(200, (buffer.duration||0)*1000 + 100);
-            setTimeout(()=> activeOneShots.delete(s), ms);
+            const ms = Math.max(200, (buffer.duration || 0) * 1000 + 100);
+            setTimeout(() => activeOneShots.delete(s), ms);
           }
-        }catch(_){}
+        } catch (_) { }
       });
       return s;
     }
 
-    function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){
+    function attachPositionalAudio(obj, url, { loop = false, volume = 0.6, refDistance = 8 } = {}) {
       const a = new THREE.PositionalAudio(audioListener);
-      audioLoader.load(url, buffer=>{ if(!a || !a.parent) return; a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); });
+      audioLoader.load(url, buffer => { if (!a || !a.parent) return; a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); });
       obj.add(a); return a;
     }
-    function stopAudioRecursive(root){ if(!root) return; const toStop=[]; root.traverse(n=>{ if(n.isAudio){ toStop.push(n); } if(n.userData && n.userData.audio){ toStop.push(n.userData.audio); } }); toStop.forEach(a=>{ try{ a.stop(); }catch(_){} }); }
+    function stopAudioRecursive(root) { if (!root) return; const toStop = []; root.traverse(n => { if (n.isAudio) { toStop.push(n); } if (n.userData && n.userData.audio) { toStop.push(n.userData.audio); } }); toStop.forEach(a => { try { a.stop(); } catch (_) { } }); }
 
     // ----------------- Controlador de personaje (abstraído) -----------------
-    const input = { keys:{}, pointerLocked:false, isXR:false };
+    const input = { keys: {}, pointerLocked: false, isXR: false };
 
     class PlayerBase {
-      constructor(env, opts={}){
+      constructor(env, opts = {}) {
         this.env = env;
-        this.position   = opts.position   || new THREE.Vector3(0,1.7,6);
-        this.radius     = opts.radius     ?? 0.4;
-        this.eyeHeight  = opts.eyeHeight  ?? 1.7;
-        this.speed      = opts.speed      ?? 3.5;
+        this.position = opts.position || new THREE.Vector3(0, 1.7, 6);
+        this.radius = opts.radius ?? 0.4;
+        this.eyeHeight = opts.eyeHeight ?? 1.7;
+        this.speed = opts.speed ?? 3.5;
         this.sprintMult = opts.sprintMult ?? 1.6;
-        this.gravity    = opts.gravity    ?? 18.0;
-        this.jumpSpeed  = opts.jumpSpeed  ?? 6.0;
-        this.velY = 0; this.grounded=false;
+        this.gravity = opts.gravity ?? 18.0;
+        this.jumpSpeed = opts.jumpSpeed ?? 6.0;
+        this.velY = 0; this.grounded = false;
       }
-      applyVerticalPhysics(dt, desiredX, desiredZ){
+      applyVerticalPhysics(dt, desiredX, desiredZ) {
         const { getGroundHeightAt, getCeilingHeightAt } = this.env.helpers;
         const groundY = getGroundHeightAt(desiredX, desiredZ);
         this.velY -= this.gravity * dt;
         let nextY = this.position.y + this.velY * dt;
-        if (nextY - this.eyeHeight <= groundY){
+        if (nextY - this.eyeHeight <= groundY) {
           nextY = groundY + this.eyeHeight; this.velY = 0; this.grounded = true;
         } else {
           this.grounded = false;
         }
         const ceil = getCeilingHeightAt(desiredX, desiredZ);
-        if (ceil < Infinity && nextY >= ceil - 1e-3){
+        if (ceil < Infinity && nextY >= ceil - 1e-3) {
           nextY = Math.min(nextY, ceil - 1e-3);
-          if (this.velY>0) this.velY = 0;
+          if (this.velY > 0) this.velY = 0;
         }
         return nextY;
       }
-      syncRig(){
+      syncRig() {
         const { xrRig, camera, input, renderer, THREE } = this.env;
-        if(input.isXR){
+        if (input.isXR) {
           const camXR = renderer.xr.getCamera(camera);
           const headWorld = new THREE.Vector3().setFromMatrixPosition(camXR.matrixWorld);
           const headLocal = headWorld.clone();
@@ -896,29 +1174,29 @@
           camera.position.set(0, this.eyeHeight, 0);
         }
       }
-      update(_dt){ /* abstract */ }
+      update(_dt) { /* abstract */ }
     }
 
-    let yaw=0, pitch=0; const mouseSensitivity=0.0022;
+    let yaw = 0, pitch = 0; const mouseSensitivity = 0.0022;
 
     class DesktopPlayer extends PlayerBase {
-      update(dt){
+      update(dt) {
         const { THREE, camera, xrRig, input, helpers } = this.env;
-        const forward = new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(0,yaw,0,'YXZ'));
-        const right   = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize();
+        const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, yaw, 0, 'YXZ'));
+        const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
         let move = new THREE.Vector3();
-        const base = this.speed * ( (input.keys['ShiftLeft']||input.keys['ShiftRight']) ? this.sprintMult : 1 );
-        if(input.keys['KeyW']) move.add(forward);
-        if(input.keys['KeyS']) move.addScaledVector(forward,-1);
-        if(input.keys['KeyA']) move.addScaledVector(right,-1);
-        if(input.keys['KeyD']) move.add(right);
-        if (move.lengthSq()>1e-6) move.normalize().multiplyScalar(base*dt);
+        const base = this.speed * ((input.keys['ShiftLeft'] || input.keys['ShiftRight']) ? this.sprintMult : 1);
+        if (input.keys['KeyW']) move.add(forward);
+        if (input.keys['KeyS']) move.addScaledVector(forward, -1);
+        if (input.keys['KeyA']) move.addScaledVector(right, -1);
+        if (input.keys['KeyD']) move.add(right);
+        if (move.lengthSq() > 1e-6) move.normalize().multiplyScalar(base * dt);
 
         let desired = this.position.clone();
-        if (move.lengthSq()>0){
-          const steps = Math.max(1, Math.ceil(move.length() / (this.radius*0.5)));
-          const stepVec = move.clone().multiplyScalar(1/steps);
-          for(let i=0;i<steps;i++){
+        if (move.lengthSq() > 0) {
+          const steps = Math.max(1, Math.ceil(move.length() / (this.radius * 0.5)));
+          const stepVec = move.clone().multiplyScalar(1 / steps);
+          for (let i = 0; i < steps; i++) {
             desired.add(stepVec);
             desired = helpers.resolveCollisionsXZ(desired, this.radius);
           }
@@ -929,28 +1207,28 @@
         this.position.set(desired.x, nextY, desired.z);
 
         xrRig.position.set(this.position.x, this.position.y - this.eyeHeight, this.position.z);
-        if(!input.isXR){ camera.position.set(0, this.eyeHeight, 0); }
+        if (!input.isXR) { camera.position.set(0, this.eyeHeight, 0); }
       }
     }
 
     class VRPlayer extends PlayerBase {
-      update(dt){
+      update(dt) {
         const { THREE, renderer, camera, input, helpers, xrRig } = this.env;
         const session = renderer.xr.getSession();
-        if(!session){ return; }
+        if (!session) { return; }
 
-        if(!xrSources.left && !xrSources.right) bindXRInputSources();
-        const leftGp  = xrSources.left?.gamepad || null;
+        if (!xrSources.left && !xrSources.right) bindXRInputSources();
+        const leftGp = xrSources.left?.gamepad || null;
         const rightGp = xrSources.right?.gamepad || null;
 
-        let lx = getAxisSafe(leftGp,  2, 0);
-        let ly = getAxisSafe(leftGp,  3, 1);
+        let lx = getAxisSafe(leftGp, 2, 0);
+        let ly = getAxisSafe(leftGp, 3, 1);
         let rx = getAxisSafe(rightGp, 2, 0);
 
-        const dead=0.1, turnDead=0.25;
-        if(Math.abs(lx)<dead) lx=0;
-        if(Math.abs(ly)<dead) ly=0;
-        if(Math.abs(rx)<turnDead) rx=0;
+        const dead = 0.1, turnDead = 0.25;
+        if (Math.abs(lx) < dead) lx = 0;
+        if (Math.abs(ly) < dead) ly = 0;
+        if (Math.abs(rx) < turnDead) rx = 0;
 
         // Usar orientación del rig (yaw del jugador), no la cabeza, para locomoción
         const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(xrRig.quaternion);
@@ -958,7 +1236,7 @@
         const right = new THREE.Vector3(1, 0, 0).applyQuaternion(xrRig.quaternion);
         right.y = 0; right.normalize();
 
-        if(!axisSign.calibrated && (Math.abs(lx)>0.6 || Math.abs(ly)>0.6)){
+        if (!axisSign.calibrated && (Math.abs(lx) > 0.6 || Math.abs(ly) > 0.6)) {
           const testF = dir.clone().multiplyScalar(-ly);
           axisSign.y = (testF.dot(dir) >= 0) ? 1 : -1; // <--- corregido (sin basura)
           const testS = right.clone().multiplyScalar(lx);
@@ -969,14 +1247,14 @@
         const base = this.speed;
         let move = new THREE.Vector3();
         move.addScaledVector(dir, -ly);
-        move.addScaledVector(right, lx);  
+        move.addScaledVector(right, lx);
 
-        if(move.lengthSq()>1e-6){
-          move.normalize().multiplyScalar(base*dt);
+        if (move.lengthSq() > 1e-6) {
+          move.normalize().multiplyScalar(base * dt);
           let desired = this.position.clone();
-          const steps = Math.max(1, Math.ceil(move.length() / (this.radius*0.5)));
-          const stepVec = move.clone().multiplyScalar(1/steps);
-          for(let i=0;i<steps;i++){
+          const steps = Math.max(1, Math.ceil(move.length() / (this.radius * 0.5)));
+          const stepVec = move.clone().multiplyScalar(1 / steps);
+          for (let i = 0; i < steps; i++) {
             desired.add(stepVec);
             desired = helpers.resolveCollisionsXZ(desired, this.radius);
           }
@@ -984,13 +1262,13 @@
           this.position.set(desired.x, nextY, desired.z);
         } else {
           const groundY = helpers.getGroundHeightAt(this.position.x, this.position.z);
-          this.velY -= this.gravity*dt;
-          let nextY = this.position.y + this.velY*dt;
-          if (nextY - this.eyeHeight <= groundY){ nextY = groundY + this.eyeHeight; this.velY=0; this.grounded=true; } else this.grounded=false;
+          this.velY -= this.gravity * dt;
+          let nextY = this.position.y + this.velY * dt;
+          if (nextY - this.eyeHeight <= groundY) { nextY = groundY + this.eyeHeight; this.velY = 0; this.grounded = true; } else this.grounded = false;
           this.position.y = nextY;
         }
 
-        if(rx!==0){
+        if (rx !== 0) {
           const turnSpeed = 1.6;
           yawRigAroundViewer(-rx * turnSpeed * dt);
         }
@@ -1013,14 +1291,14 @@
     xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
     camera.position.set(0, player.eyeHeight, 0);
 
-    const controllerState = { update: (dt)=>player.update(dt), enabled:true };
+    const controllerState = { update: (dt) => player.update(dt), enabled: true };
 
-    document.addEventListener('keydown', e=>{ input.keys[e.code]=true; emit('key:down', e); if(e.code==='KeyR') loadHSML(); });
-    document.addEventListener('keyup',   e=>{ input.keys[e.code]=false; emit('key:up', e); });
+    document.addEventListener('keydown', e => { input.keys[e.code] = true; emit('key:down', e); if (e.code === 'KeyR') loadHSML(); });
+    document.addEventListener('keyup', e => { input.keys[e.code] = false; emit('key:up', e); });
 
-    function emitUseFromPointer(source, ctrl=null){
+    function emitUseFromPointer(source, ctrl = null) {
       let hit = null;
-      if (input.isXR){
+      if (input.isXR) {
         hit = (ctrl ? pickFromController(ctrl) : null) || pickFromController(xrCtrl1) || pickFromController(xrCtrl2) || pickCenter();
       } else {
         hit = pickCenter();
@@ -1028,107 +1306,107 @@
       emit('input:use', { source, hit });
     }
 
-    canvas.addEventListener('mousedown', ()=>{ if (document.pointerLockElement!==canvas) canvas.requestPointerLock(); emitUseFromPointer('mouse'); emitTouchFromPointer('mouse'); });
-    try { canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }, { passive: true }); }
-    catch(_) { canvas.addEventListener('touchstart', ()=>{ emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }); }
-    document.addEventListener('pointerlockchange', ()=>{ input.pointerLocked = (document.pointerLockElement===canvas); document.getElementById('toggleFreeCameraBtn').textContent = input.pointerLocked ? 'Liberar Mouse' : 'Capturar Mouse'; });
-    document.addEventListener('mousemove', e=>{ if(input.isXR) return; if(!input.pointerLocked) return; yaw -= e.movementX*mouseSensitivity; pitch -= e.movementY*mouseSensitivity; const maxP=Math.PI/2-0.001; if(pitch>maxP)pitch=maxP; if(pitch<-maxP)pitch=-maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', {yaw,pitch}); });
+    canvas.addEventListener('mousedown', () => { if (document.pointerLockElement !== canvas) canvas.requestPointerLock(); emitUseFromPointer('mouse'); emitTouchFromPointer('mouse'); });
+    try { canvas.addEventListener('touchstart', () => { emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }, { passive: true }); }
+    catch (_) { canvas.addEventListener('touchstart', () => { emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }); }
+    document.addEventListener('pointerlockchange', () => { input.pointerLocked = (document.pointerLockElement === canvas); document.getElementById('toggleFreeCameraBtn').textContent = input.pointerLocked ? 'Liberar Mouse' : 'Capturar Mouse'; });
+    document.addEventListener('mousemove', e => { if (input.isXR) return; if (!input.pointerLocked) return; yaw -= e.movementX * mouseSensitivity; pitch -= e.movementY * mouseSensitivity; const maxP = Math.PI / 2 - 0.001; if (pitch > maxP) pitch = maxP; if (pitch < -maxP) pitch = -maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', { yaw, pitch }); });
 
     // Físicas/colliders
     const staticColliders = [];
-    function addBoxColliderFor(obj, size){
+    function addBoxColliderFor(obj, size) {
       const handle = {
         object: obj, vnode: null,
-        localBox: new THREE.Box3(new THREE.Vector3(-size.x/2,-size.y/2,-size.z/2), new THREE.Vector3(size.x/2,size.y/2,size.z/2)),
+        localBox: new THREE.Box3(new THREE.Vector3(-size.x / 2, -size.y / 2, -size.z / 2), new THREE.Vector3(size.x / 2, size.y / 2, size.z / 2)),
         worldBox: new THREE.Box3(),
         min: new THREE.Vector3(), max: new THREE.Vector3(),
         __id: Math.random().toString(36).slice(2)
       };
       handle.worldBox.copy(handle.localBox).applyMatrix4(obj.matrixWorld);
       handle.min.copy(handle.worldBox.min); handle.max.copy(handle.worldBox.max);
-      staticColliders.push(handle); 
+      staticColliders.push(handle);
       return handle;
     }
 
-    function getGroundHeightAt(x,z){ let gy = -Infinity; for(const c of staticColliders){ if(x>=c.min.x && x<=c.max.x && z>=c.min.z && z<=c.max.z){ gy = Math.max(gy, c.max.y); } } return (gy===-Infinity)? 0 : gy; }
-    function getCeilingHeightAt(x,z){ let cy = Infinity; for(const c of staticColliders){ if(x>=c.min.x && x<=c.max.x && z>=c.min.z && z<=c.max.z){ cy = Math.min(cy, c.min.y); } } return cy; }
-    function resolveCollisionsXZ(pos, r){
+    function getGroundHeightAt(x, z) { let gy = -Infinity; for (const c of staticColliders) { if (x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z) { gy = Math.max(gy, c.max.y); } } return (gy === -Infinity) ? 0 : gy; }
+    function getCeilingHeightAt(x, z) { let cy = Infinity; for (const c of staticColliders) { if (x >= c.min.x && x <= c.max.x && z >= c.min.z && z <= c.max.z) { cy = Math.min(cy, c.min.y); } } return cy; }
+    function resolveCollisionsXZ(pos, r) {
       let p = pos.clone();
-      for(let iter=0; iter<4; iter++){
+      for (let iter = 0; iter < 4; iter++) {
         let moved = false;
-        for(const c of staticColliders){
-          const min=c.min, max=c.max;
-          const insideX = (p.x>min.x && p.x<max.x);
-          const insideZ = (p.z>min.z && p.z<max.z);
-          if(insideX && insideZ){
+        for (const c of staticColliders) {
+          const min = c.min, max = c.max;
+          const insideX = (p.x > min.x && p.x < max.x);
+          const insideZ = (p.z > min.z && p.z < max.z);
+          if (insideX && insideZ) {
             const dl = p.x - min.x, dr = max.x - p.x, db = p.z - min.z, df = max.z - p.z;
             const m = Math.min(dl, dr, db, df);
             const eps = 1e-3;
-            if (m===dl)      p.x = min.x - r - eps;
-            else if(m===dr)  p.x = max.x + r + eps;
-            else if(m===db)  p.z = min.z - r - eps;
-            else             p.z = max.z + r + eps;
+            if (m === dl) p.x = min.x - r - eps;
+            else if (m === dr) p.x = max.x + r + eps;
+            else if (m === db) p.z = min.z - r - eps;
+            else p.z = max.z + r + eps;
             moved = true; continue;
           }
-          const closestX=Math.max(min.x, Math.min(p.x, max.x));
-          const closestZ=Math.max(min.z, Math.min(p.z, max.z));
-          const dx=p.x-closestX, dz=p.z-closestZ;
-          const d2=dx*dx+dz*dz, rr=r*r;
-          if(d2<rr){ const d=Math.sqrt(Math.max(d2,1e-6)); const nx=dx/d, nz=dz/d; const push=(r-d)+1e-3; p.x+=nx*push; p.z+=nz*push; moved=true; }
+          const closestX = Math.max(min.x, Math.min(p.x, max.x));
+          const closestZ = Math.max(min.z, Math.min(p.z, max.z));
+          const dx = p.x - closestX, dz = p.z - closestZ;
+          const d2 = dx * dx + dz * dz, rr = r * r;
+          if (d2 < rr) { const d = Math.sqrt(Math.max(d2, 1e-6)); const nx = dx / d, nz = dz / d; const push = (r - d) + 1e-3; p.x += nx * push; p.z += nz * push; moved = true; }
         }
-        if(!moved) break;
+        if (!moved) break;
       }
       return p;
     }
 
     // ----------------- VR: entrada y locomoción -----------------
-    const xrSources = { left:null, right:null };
+    const xrSources = { left: null, right: null };
     const axisSign = { x: 1, y: 1, calibrated: false };
 
-    function bindXRInputSources(){
+    function bindXRInputSources() {
       const session = renderer.xr.getSession();
-      if(!session) return;
-      const refresh = ()=>{
+      if (!session) return;
+      const refresh = () => {
         xrSources.left = xrSources.right = null;
-        for (const src of session.inputSources){
-          if(!src || !src.gamepad) continue;
-          if(src.handedness==='left')  xrSources.left  = src;
-          if(src.handedness==='right') xrSources.right = src;
+        for (const src of session.inputSources) {
+          if (!src || !src.gamepad) continue;
+          if (src.handedness === 'left') xrSources.left = src;
+          if (src.handedness === 'right') xrSources.right = src;
         }
       };
       refresh();
       session.addEventListener('inputsourceschange', refresh);
     }
 
-    function getAxisSafe(gp, ixPrimary, ixAlt){
+    function getAxisSafe(gp, ixPrimary, ixAlt) {
       if (!gp || !Array.isArray(gp.axes)) return 0;
       const a = gp.axes;
       let v = 0;
       if (a.length > ixPrimary && Number.isFinite(a[ixPrimary])) v = a[ixPrimary];
-      else if (a.length > ixAlt && Number.isFinite(a[ixAlt]))   v = a[ixAlt];
+      else if (a.length > ixAlt && Number.isFinite(a[ixAlt])) v = a[ixAlt];
       return Math.abs(v) < 1e-6 ? 0 : v;
     }
 
 
     const tempMatrix = new THREE.Matrix4();
-    function buildXRRay(data){
-      if (data.targetRayMode === 'tracked-pointer'){
-        const geom = new THREE.BufferGeometry().setFromPoints([ new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1) ]);
-        const mat = new THREE.LineBasicMaterial({ transparent:true, opacity:0.8 });
+    function buildXRRay(data) {
+      if (data.targetRayMode === 'tracked-pointer') {
+        const geom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
+        const mat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.8 });
         return new THREE.Line(geom, mat);
-      } else if (data.targetRayMode === 'gaze'){
-        const geom = new THREE.RingGeometry(0.02, 0.04, 32).translate(0,0,-1);
-        const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent:true, opacity:0.5 });
+      } else if (data.targetRayMode === 'gaze') {
+        const geom = new THREE.RingGeometry(0.02, 0.04, 32).translate(0, 0, -1);
+        const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
         return new THREE.Mesh(geom, mat);
       }
       return new THREE.Group();
     }
-    function pickFromController(ctrl, far=100){
+    function pickFromController(ctrl, far = 100) {
       tempMatrix.identity().extractRotation(ctrl.matrixWorld);
       raycaster.far = far;
       raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
-      raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
-      const hits = raycaster.intersectObjects(scene.children,true);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+      const hits = raycaster.intersectObjects(scene.children, true);
       const h = firstVirtualHit(hits);
       if (h) return h;
       return null;
@@ -1136,16 +1414,16 @@
 
     const xrCtrl1 = renderer.xr.getController(0);
     const xrCtrl2 = renderer.xr.getController(1);
-    [xrCtrl1, xrCtrl2].forEach((ctrl)=>{
-      ctrl.addEventListener('connected', (e)=>{
+    [xrCtrl1, xrCtrl2].forEach((ctrl) => {
+      ctrl.addEventListener('connected', (e) => {
         ctrl.userData.handedness = e.data.handedness;
         ctrl.add(buildXRRay(e.data));
       });
-      ctrl.addEventListener('disconnected', ()=>{
-        while(ctrl.children.length) ctrl.remove(ctrl.children[0]);
+      ctrl.addEventListener('disconnected', () => {
+        while (ctrl.children.length) ctrl.remove(ctrl.children[0]);
       });
-      ctrl.addEventListener('selectstart', ()=>{ emitUseFromPointer('vr', ctrl); emitTouchFromPointer('vr', ctrl); });
-      ctrl.addEventListener('select',      ()=>{ emitUseFromPointer('vr', ctrl); emitTouchFromPointer('vr', ctrl); });
+      ctrl.addEventListener('selectstart', () => { emitUseFromPointer('vr', ctrl); emitTouchFromPointer('vr', ctrl); });
+      ctrl.addEventListener('select', () => { emitUseFromPointer('vr', ctrl); emitTouchFromPointer('vr', ctrl); });
       xrRig.add(ctrl);
     });
     const controllerModelFactory = new XRControllerModelFactory();
@@ -1154,226 +1432,255 @@
 
     // ----------------- Raycast / "usar" -----------------
     const raycaster = new THREE.Raycaster();
-    function firstVirtualHit(hits){
-      if(!hits||!hits.length) return null;
-      for(const h of hits){
-        let o=h.object;
-        while(o){ if(o.userData && o.userData.key){ return { object:h.object, point:h.point, distance:h.distance }; } o=o.parent; }
+    function firstVirtualHit(hits) {
+      if (!hits || !hits.length) return null;
+      for (const h of hits) {
+        let o = h.object;
+        while (o) { if (o.userData && o.userData.key) { return { object: h.object, point: h.point, distance: h.distance }; } o = o.parent; }
       }
       const h0 = hits[0];
-      return { object:h0.object, point:h0.point, distance:h0.distance };
+      return { object: h0.object, point: h0.point, distance: h0.distance };
     }
-    function pickCenter(far=100){
+    function pickCenter(far = 100) {
       raycaster.far = far;
-      if(input.isXR){
+      if (input.isXR) {
         const xrCam = renderer.xr.getCamera(camera);
         raycaster.ray.origin.setFromMatrixPosition(xrCam.matrixWorld);
-        raycaster.ray.direction.set(0,0,-1).transformDirection(xrCam.matrixWorld);
-        const hits=raycaster.intersectObjects(scene.children,true);
+        raycaster.ray.direction.set(0, 0, -1).transformDirection(xrCam.matrixWorld);
+        const hits = raycaster.intersectObjects(scene.children, true);
         return firstVirtualHit(hits);
       } else {
-        raycaster.setFromCamera({x:0,y:0}, camera);
-        const hits=raycaster.intersectObjects(scene.children,true);
+        raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+        const hits = raycaster.intersectObjects(scene.children, true);
         return firstVirtualHit(hits);
       }
     }
 
-    function getCtrlTip(ctrl){ const v=new THREE.Vector3(); v.setFromMatrixPosition(ctrl.matrixWorld); return v; }
+    function getCtrlTip(ctrl) { const v = new THREE.Vector3(); v.setFromMatrixPosition(ctrl.matrixWorld); return v; }
 
     // Optimización: solo recorrer objetos interactivos
     const tmpBox = new THREE.Box3();
-    function checkVRTouchesOptimizado(){
-      if(!input.isXR || interactiveObjects.size===0) return;
-      const controllers=[xrCtrl1,xrCtrl2];
-      const radius=0.035;
-      for(const ctrl of controllers){
-        if(!ctrl) continue; const tip=getCtrlTip(ctrl);
-        for (const obj of interactiveObjects){
+    function checkVRTouchesOptimizado() {
+      if (!input.isXR || interactiveObjects.size === 0) return;
+      const controllers = [xrCtrl1, xrCtrl2];
+      const radius = 0.035;
+      for (const ctrl of controllers) {
+        if (!ctrl) continue; const tip = getCtrlTip(ctrl);
+        for (const obj of interactiveObjects) {
           const k = obj.userData?.key;
           const col = k ? keyToCollider.get(k) : null;
-          if (col){
-            if (col.worldBox.distanceToPoint(tip) <= radius){ emit('toque', { source:'vr', object: obj, point: tip.clone(), controller: ctrl }); }
+          if (col) {
+            if (col.worldBox.distanceToPoint(tip) <= radius) { emit('toque', { source: 'vr', object: obj, point: tip.clone(), controller: ctrl }); }
           } else {
             tmpBox.setFromObject(obj);
-            if (tmpBox.distanceToPoint(tip) <= radius){ emit('toque', { source:'vr', object: obj, point: tip.clone(), controller: ctrl }); }
+            if (tmpBox.distanceToPoint(tip) <= radius) { emit('toque', { source: 'vr', object: obj, point: tip.clone(), controller: ctrl }); }
           }
         }
       }
     }
 
-    function emitTouchFromPointer(source, ctrl=null){
+    function emitTouchFromPointer(source, ctrl = null) {
       const hit = ctrl ? pickFromController(ctrl) : pickCenter();
-      if(!hit) return;
+      if (!hit) return;
       const v = findVNodeFromObject(hit.object);
       if (v) emitToNode('toque', v, { source, object: hit.object, point: hit.point, distance: hit.distance });
       else emit('toque', { source, object: hit.object, point: hit.point, distance: hit.distance });
     }
 
-    renderer.xr.addEventListener('sessionstart', ()=>{
+    renderer.xr.addEventListener('sessionstart', () => {
       input.isXR = true;
       axisSign.x = 1; axisSign.y = 1; axisSign.calibrated = false;
       player = new VRPlayer(env);
-      controllerState.update = (dt)=>player.update(dt);
+      controllerState.update = (dt) => player.update(dt);
       bindXRInputSources();
       camera.position.set(0, 0, 0);
       player.syncRig();
-      xrRig.rotation.set(0,0,0);
+      xrRig.rotation.set(0, 0, 0);
     });
-    renderer.xr.addEventListener('sessionend',   ()=>{
+    renderer.xr.addEventListener('sessionend', () => {
       input.isXR = false;
       axisSign.x = 1; axisSign.y = 1; axisSign.calibrated = false;
       player = new DesktopPlayer(env);
-      controllerState.update = (dt)=>player.update(dt);
-      xrRig.rotation.set(0,0,0);
+      controllerState.update = (dt) => player.update(dt);
+      xrRig.rotation.set(0, 0, 0);
       camera.position.set(0, player.eyeHeight, 0);
     });
 
     // ----------------- Loop principal -----------------
     renderer.setAnimationLoop(animate);
-    function animate(){ 
-      const now=performance.now(); 
-      const dt=(now-lastFrameTS)/1000; 
-      lastFrameTS=now; 
+    function animate() {
+      const now = performance.now();
+      const dt = (now - lastFrameTS) / 1000;
+      lastFrameTS = now;
 
-      userUpdateFunctions.forEach(fn=>{ try{ fn(dt); }catch(e){ console.error('update error', e); } });
+      userUpdateFunctions.forEach(fn => { try { fn(dt); } catch (e) { console.error('update error', e); } });
 
       applyDirtyOnce();
       updateDirtyColliders();
 
-      if(controllerState.enabled && controllerState.update) controllerState.update(dt);
+      if (controllerState.enabled && controllerState.update) controllerState.update(dt);
       checkVRTouchesOptimizado();
 
-      mixers.forEach(m=>{ try{ m.update(dt); }catch(_){} });
+      mixers.forEach(m => { try { m.update(dt); } catch (_) { } });
 
-      updateStats(now); 
-      maybeUpdateDevTool(); 
-      renderer.render(scene,camera); 
+      updateStats(now);
+      maybeUpdateDevTool();
+      renderer.render(scene, camera);
     }
 
-    function updateStats(now){ frames++; if(now-lastTimeStat>=1000){ currentFPS = frames*1000/(now-lastTimeStat); frames=0; lastTimeStat=now; document.getElementById('fpsValue').textContent=currentFPS.toFixed(1); if(performance.memory){ const used=(performance.memory.usedJSHeapSize/1048576).toFixed(1); const total=(performance.memory.totalJSHeapSize/1048576).toFixed(1); document.getElementById('ramValue').textContent=`${used} / ${total} MB`; } } }
+    function updateStats(now) { frames++; if (now - lastTimeStat >= 1000) { currentFPS = frames * 1000 / (now - lastTimeStat); frames = 0; lastTimeStat = now; document.getElementById('fpsValue').textContent = currentFPS.toFixed(1); if (performance.memory) { const used = (performance.memory.usedJSHeapSize / 1048576).toFixed(1); const total = (performance.memory.totalJSHeapSize / 1048576).toFixed(1); document.getElementById('ramValue').textContent = `${used} / ${total} MB`; } } }
 
     // ----------------- API pública (dimension) -----------------
     const dimension = {
-      createElement: (tag)=>createProxiedNode(tag),
-      create(tag, attrs={}, children=[]) { const node=createProxiedNode(tag); Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,v)); children.forEach(ch=>node.appendChild(ch)); return node; },
-      appendChild(child){ if(!virtualDOM){ console.warn('No virtualDOM'); return; } virtualDOM.children.push(child); buildSceneFromVirtual(child, scene); scheduleDevToolUpdate(); },
-      remove(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return; removeNodeByKey(virtualDOM, v.key); const obj=nodeKeyToObject.get(v.key); if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); } nodeKeyToObject.delete(v.key); disposeAnimForKey(v.key); scheduleDevToolUpdate(); },
-      find(selector){ if(!selector) return []; if(selector.startsWith('#')){ const v=idToVNode.get(selector.slice(1)); return v ? [createProxiedNode(v)] : []; } if(selector.startsWith('.')){ const set=classToVNodes.get(selector.slice(1)); return set ? Array.from(set).map(v=>createProxiedNode(v)) : []; } const out=[]; (function walk(v){ if(!v) return; if(v.tag===selector) out.push(createProxiedNode(v)); (v.children||[]).forEach(walk); })(virtualDOM); return out; },
-      getObjectFor(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return null; return nodeKeyToObject.get(v.key)||null; },
-      behavior(name,factory){ behaviorRegistry.set(name, factory); },
-      refresh(){ scheduleDevToolUpdate(); },
-      toHSML(){ return serializeHSML(virtualDOM); },
-      importHSML(hsml){ importHSMLFromString(hsml); },
+      createElement: (tag) => createProxiedNode(tag),
+      create(tag, attrs = {}, children = []) { const node = createProxiedNode(tag); Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, v)); children.forEach(ch => node.appendChild(ch)); return node; },
+     
+      appendChild(child){
+        if(!virtualDOM){ console.warn('No virtualDOM'); return; }
+        const v = unwrapVNode(child);
+        virtualDOM.children.push(v);
+        indexerAddSubtree(v);
+        buildSceneFromVirtual(v, scene);
+        scheduleDevToolUpdate();
+      },
+      remove(nodeOrId){
+        let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId;
+        v = unwrapVNode(v);
+        if(!v) return;
+        indexerRemoveSubtree(v);               // <— desindexar primero
+        removeNodeByKey(virtualDOM, v.key);
+        const obj=nodeKeyToObject.get(v.key);
+        if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); }
+        nodeKeyToObject.delete(v.key);
+        disposeAnimForKey(v.key);
+        scheduleDevToolUpdate();
+      },
+      find(selector) { if (!selector) return []; if (selector.startsWith('#')) { const v = idToVNode.get(selector.slice(1)); return v ? [createProxiedNode(v)] : []; } if (selector.startsWith('.')) { const set = classToVNodes.get(selector.slice(1)); return set ? Array.from(set).map(v => createProxiedNode(v)) : []; } const out = []; (function walk(v) { if (!v) return; if (v.tag === selector) out.push(createProxiedNode(v)); (v.children || []).forEach(walk); })(virtualDOM); return out; },
+      getObjectFor(nodeOrId){
+        let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId;
+        v = unwrapVNode(v);
+        if(!v) return null;
+        return nodeKeyToObject.get(v.key)||null;
+      },
+      setAttr(id, name, value){
+        const v = idToVNode.get(id);
+        if(!v) return;
+        // Usar proxy para disparar indexación incremental de id/class
+        createProxiedNode(v).setAttribute(name, value);
+      },
+      behavior(name, factory) { behaviorRegistry.set(name, factory); },
+      refresh() { scheduleDevToolUpdate(); },
+      toHSML() { return serializeHSML(virtualDOM); },
+      importHSML(hsml) { importHSMLFromString(hsml); },
 
       on, off, emit,
 
-      loop: { onUpdate(fn){ userUpdateFunctions.add(fn); return ()=>userUpdateFunctions.delete(fn); }, offUpdate(fn){ userUpdateFunctions.delete(fn); } },
+      loop: { onUpdate(fn) { userUpdateFunctions.add(fn); return () => userUpdateFunctions.delete(fn); }, offUpdate(fn) { userUpdateFunctions.delete(fn); } },
 
       input: {
-        isDown(code){ return !!input.keys[code]; },
-        pointerLocked: ()=>input.pointerLocked,
-        lockPointer(){ if(document.pointerLockElement!==canvas) canvas.requestPointerLock(); },
-        unlockPointer(){ if(document.pointerLockElement===canvas) document.exitPointerLock(); },
-        onUse(cb){ on('input:use', cb); return ()=>off('input:use', cb); }
+        isDown(code) { return !!input.keys[code]; },
+        pointerLocked: () => input.pointerLocked,
+        lockPointer() { if (document.pointerLockElement !== canvas) canvas.requestPointerLock(); },
+        unlockPointer() { if (document.pointerLockElement === canvas) document.exitPointerLock(); },
+        onUse(cb) { on('input:use', cb); return () => off('input:use', cb); }
       },
 
       camera: {
-        teleport(x,y,z){ 
-          player.position.set(x,y??player.eyeHeight,z);
+        teleport(x, y, z) {
+          player.position.set(x, y ?? player.eyeHeight, z);
           xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
-          if(!input.isXR){ 
+          if (!input.isXR) {
             camera.position.set(0, player.eyeHeight, 0);
           } else {
             player.syncRig();
           }
         },
-        setYawPitch(yawRad,pitchRad){ yaw=yawRad; pitch=pitchRad; if(!input.isXR){ camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } },
-        getYawPitch(){ return { yaw, pitch }; },
-        getPosition(){ return camera.getWorldPosition(new THREE.Vector3()); }
+        setYawPitch(yawRad, pitchRad) { yaw = yawRad; pitch = pitchRad; if (!input.isXR) { camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } },
+        getYawPitch() { return { yaw, pitch }; },
+        getPosition() { return camera.getWorldPosition(new THREE.Vector3()); }
       },
-      controller: { enable(v){ controllerState.enabled=!!v; }, set(fn){ controllerState.update = fn; controllerState.enabled = true; } },
+      controller: { enable(v) { controllerState.enabled = !!v; }, set(fn) { controllerState.update = fn; controllerState.enabled = true; } },
 
-      physics: { addBoxCollider: addBoxColliderFor, clearColliders, resolvePlayerXZ: (desired, r)=>resolveCollisionsXZ(desired, r??player.radius), getGroundHeightAt, pickCenter: (far)=>pickCenter(far), pickFromController: (i=0, far=100)=>{ const ctrl=[xrCtrl1,xrCtrl2][i]; if(!ctrl) return null; return pickFromController(ctrl, far); } },
+      physics: { addBoxCollider: addBoxColliderFor, clearColliders, resolvePlayerXZ: (desired, r) => resolveCollisionsXZ(desired, r ?? player.radius), getGroundHeightAt, pickCenter: (far) => pickCenter(far), pickFromController: (i = 0, far = 100) => { const ctrl = [xrCtrl1, xrCtrl2][i]; if (!ctrl) return null; return pickFromController(ctrl, far); } },
 
       audio: { play: playSoundOneShot, attachPositional: attachPositionalAudio },
 
-      get(id){ const v=idToVNode.get(id); return v ? createProxiedNode(v) : null; },
-      setAttr(id, name, value){ const v=idToVNode.get(id); if(!v) return; v.setAttribute(name, value); markDirty(v); scheduleDevToolUpdate(); },
+      get(id) { const v = idToVNode.get(id); return v ? createProxiedNode(v) : null; },
 
       state: globalState,
       math: MATH
     };
 
-    function resolveVNode(nodeOrId){
-      if(typeof nodeOrId === 'string'){
+    function resolveVNode(nodeOrId) {
+      if (typeof nodeOrId === 'string') {
         return idToVNode.get(nodeOrId) || null;
       }
-      if(nodeOrId && typeof nodeOrId === 'object'){
+      if (nodeOrId && typeof nodeOrId === 'object') {
         const k = nodeOrId.key ?? (nodeOrId.attributes?.id && idToVNode.get(nodeOrId.attributes.id)?.key);
-        if(k && keyToVNode.has(k)) return keyToVNode.get(k);
+        if (k && keyToVNode.has(k)) return keyToVNode.get(k);
       }
       return null;
     }
 
     dimension.anim = {
-      async ready(nodeOrId){
-        const v = resolveVNode(nodeOrId); if(!v) return false;
+      async ready(nodeOrId) {
+        const v = resolveVNode(nodeOrId); if (!v) return false;
         const o = nodeKeyToObject.get(v.key);
-        if(o?.userData?.modelReady) await o.userData.modelReady;
+        if (o?.userData?.modelReady) await o.userData.modelReady;
         return true;
       },
-      list(nodeOrId){
-        const v = resolveVNode(nodeOrId); if(!v) return [];
-        const st = getAnimStateByVNode(v); if(!st) return [];
+      list(nodeOrId) {
+        const v = resolveVNode(nodeOrId); if (!v) return [];
+        const st = getAnimStateByVNode(v); if (!st) return [];
         return Array.from(st.clips.keys());
       },
-      play(nodeOrId, nameOrIndex, opts={}){
-        const v = resolveVNode(nodeOrId); if(!v) return null;
-        const st = getAnimStateByVNode(v); if(!st) return null;
+      play(nodeOrId, nameOrIndex, opts = {}) {
+        const v = resolveVNode(nodeOrId); if (!v) return null;
+        const st = getAnimStateByVNode(v); if (!st) return null;
 
         const list = Array.from(st.clips.entries());
         let entry = null;
-        if(typeof nameOrIndex === 'number') entry = list[nameOrIndex] || null;
-        else entry = st.clips.has(nameOrIndex) ? [nameOrIndex, st.clips.get(nameOrIndex)] : list.find(([n])=>n===nameOrIndex) || null;
-        if(!entry) return null;
+        if (typeof nameOrIndex === 'number') entry = list[nameOrIndex] || null;
+        else entry = st.clips.has(nameOrIndex) ? [nameOrIndex, st.clips.get(nameOrIndex)] : list.find(([n]) => n === nameOrIndex) || null;
+        if (!entry) return null;
 
         const [clipName, clip] = entry;
         const action = st.mixer.clipAction(clip);
-        const fade = Math.max(0, opts.fade||0);
-        const loopMode = (opts.loop==='once') ? THREE.LoopOnce : THREE.LoopRepeat;
+        const fade = Math.max(0, opts.fade || 0);
+        const loopMode = (opts.loop === 'once') ? THREE.LoopOnce : THREE.LoopRepeat;
         action.reset();
         action.setLoop(loopMode, Infinity);
         action.clampWhenFinished = !!opts.clampWhenFinished;
-        action.timeScale = (opts.timeScale!=null ? opts.timeScale : 1);
+        action.timeScale = (opts.timeScale != null ? opts.timeScale : 1);
 
-        if(fade>0){
-          st.actions.forEach(a=>a.crossFadeTo(action, fade, false));
+        if (fade > 0) {
+          st.actions.forEach(a => a.crossFadeTo(action, fade, false));
           action.play();
-        }else{
-          st.actions.forEach(a=>a.stop());
+        } else {
+          st.actions.forEach(a => a.stop());
           action.play();
         }
         st.actions.set(clipName, action);
         return action;
       },
-      stop(nodeOrId, name=null){
-        const v = resolveVNode(nodeOrId); if(!v) return;
-        const st = getAnimStateByVNode(v); if(!st) return;
-        if(!name){ st.actions.forEach(a=>a.stop()); st.actions.clear(); return; }
+      stop(nodeOrId, name = null) {
+        const v = resolveVNode(nodeOrId); if (!v) return;
+        const st = getAnimStateByVNode(v); if (!st) return;
+        if (!name) { st.actions.forEach(a => a.stop()); st.actions.clear(); return; }
         const a = st.actions.get(name);
-        if(a){ a.stop(); st.actions.delete(name); }
+        if (a) { a.stop(); st.actions.delete(name); }
       },
-      async load(nodeOrId, url, { take=null, retarget=true }={}){
-        const v = resolveVNode(nodeOrId); if(!v) return [];
-        const st = getAnimStateByVNode(v); if(!st) return [];
+      async load(nodeOrId, url, { take = null, retarget = true } = {}) {
+        const v = resolveVNode(nodeOrId); if (!v) return [];
+        const st = getAnimStateByVNode(v); if (!st) return [];
         const { scene: srcScene, animations } = await getGLTF(url);
         const added = [];
-        for(const clip of (animations||[])){
-          if(take && !String(clip.name||'').includes(take)) continue;
+        for (const clip of (animations || [])) {
+          if (take && !String(clip.name || '').includes(take)) continue;
           let out = clip;
-          if(retarget && SkeletonUtils?.retargetClip){
-            try{ out = SkeletonUtils.retargetClip(st.root, srcScene, clip); }
-            catch(e){ console.warn('retargetClip falló, uso clip original', e); }
+          if (retarget && SkeletonUtils?.retargetClip) {
+            try { out = SkeletonUtils.retargetClip(st.root, srcScene, clip); }
+            catch (e) { console.warn('retargetClip falló, uso clip original', e); }
           }
           const name = out.name || clip.name || `ext${st.clips.size}`;
           st.clips.set(name, out);
@@ -1384,68 +1691,68 @@
     };
 
     const behaviorRegistry = new Map();
-    function setUpdate(fn){ userUpdateFunctions.add(fn); }
-    function serializeHSML(vnode){ if(!vnode) return ''; const attrs=Object.entries(vnode.attributes).map(([k,v])=>`${k}="${String(v)}"`).join(' '); const open=attrs?`<${vnode.tag} ${attrs}>`:`<${vnode.tag}>`; if(!vnode.children||vnode.children.length===0) return `${open}</${vnode.tag}>`; return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`; }
+    function setUpdate(fn) { userUpdateFunctions.add(fn); }
+    function serializeHSML(vnode) { if (!vnode) return ''; const attrs = Object.entries(vnode.attributes).map(([k, v]) => `${k}="${String(v)}"`).join(' '); const open = attrs ? `<${vnode.tag} ${attrs}>` : `<${vnode.tag}>`; if (!vnode.children || vnode.children.length === 0) return `${open}</${vnode.tag}>`; return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`; }
 
     // ----------------- Carga HSML -----------------
-    async function loadHSML(){
-      const inputEl=document.getElementById('urlInput');
-      const input=inputEl?inputEl.value.trim():'';
-      let hsml='';
-      const hashLevel=new URLSearchParams(location.hash.replace('#','')).get('level');
-      if(!input && hashLevel){
-        try{ const res=await fetch(hashLevel); hsml=await res.text(); }
-        catch(e){ console.warn('No se pudo cargar hash level, usando demo'); hsml=DEFAULT_HSML; }
-      } else if (!input && !hashLevel){
-        let home='';
-        try{ home = localStorage.getItem('hsml:home') || ''; }catch(_){ home=''; }
-        if(home){
-          if(inputEl) inputEl.value = home;
-          if(home.trim().startsWith('<')){ hsml = home; }
+    async function loadHSML() {
+      const inputEl = document.getElementById('urlInput');
+      const input = inputEl ? inputEl.value.trim() : '';
+      let hsml = '';
+      const hashLevel = new URLSearchParams(location.hash.replace('#', '')).get('level');
+      if (!input && hashLevel) {
+        try { const res = await fetch(hashLevel); hsml = await res.text(); }
+        catch (e) { console.warn('No se pudo cargar hash level, usando demo'); hsml = DEFAULT_HSML; }
+      } else if (!input && !hashLevel) {
+        let home = '';
+        try { home = localStorage.getItem('hsml:home') || ''; } catch (_) { home = ''; }
+        if (home) {
+          if (inputEl) inputEl.value = home;
+          if (home.trim().startsWith('<')) { hsml = home; }
           else {
-            try{ const res=await fetch(home); hsml=await res.text(); }
-            catch(e){ console.warn('No se pudo cargar HOME, usando demo'); hsml=DEFAULT_HSML; }
+            try { const res = await fetch(home); hsml = await res.text(); }
+            catch (e) { console.warn('No se pudo cargar HOME, usando demo'); hsml = DEFAULT_HSML; }
           }
         } else {
           hsml = DEFAULT_HSML;
         }
-      } else if (input && input.startsWith('<')){
-        hsml=input;
-      } else if (input){
-        try{ const res=await fetch(input); hsml=await res.text(); }
-        catch(e){ console.warn('No se pudo cargar URL, usando demo'); hsml=DEFAULT_HSML; }
+      } else if (input && input.startsWith('<')) {
+        hsml = input;
+      } else if (input) {
+        try { const res = await fetch(input); hsml = await res.text(); }
+        catch (e) { console.warn('No se pudo cargar URL, usando demo'); hsml = DEFAULT_HSML; }
       } else {
-        hsml=DEFAULT_HSML;
+        hsml = DEFAULT_HSML;
       }
       await importHSMLFromString(hsml);
     }
 
-    async function importHSMLFromString(hsml){
+    async function importHSMLFromString(hsml) {
       stopAllAudio();
       if (typeof hsml === 'string') { hsml = hsml.replace(/<\\\/script>/g, '<\/script>'); }
-      scene.children.slice().forEach(obj=>{ const keep = (obj===gridHelper)||(obj===axesHelper)||(obj===ambientLight)||(obj===dirLight)||(obj===xrRig); if(!keep){ stopAudioRecursive(obj); scene.remove(obj); } });
-      nodeKeyToObject.clear(); VirtualNode.nextKey=1; userUpdateFunctions.clear(); clearColliders();
+      scene.children.slice().forEach(obj => { const keep = (obj === gridHelper) || (obj === axesHelper) || (obj === ambientLight) || (obj === dirLight) || (obj === xrRig); if (!keep) { stopAudioRecursive(obj); scene.remove(obj); } });
+      nodeKeyToObject.clear(); VirtualNode.nextKey = 1; userUpdateFunctions.clear(); clearColliders();
       animByKey.clear();
       mixers.clear();
 
       const parsed = parseHSMLRootFromString(hsml);
-      if(!parsed || !parsed.vnode){ console.error('No <hsml> o <space> root'); return; }
+      if (!parsed || !parsed.vnode) { console.error('No <hsml> o <space> root'); return; }
       virtualDOM = parsed.vnode; reindexVirtualDOM(); await buildSceneFromVirtual(virtualDOM, scene); scheduleDevToolUpdate();
 
       const xml = new DOMParser().parseFromString(hsml, 'text/xml');
       let scriptNodes = [];
       const hsmlEl = xml.getElementsByTagName('hsml')[0] || null;
-      if (hsmlEl){ scriptNodes = Array.from(hsmlEl.getElementsByTagName('script')); }
+      if (hsmlEl) { scriptNodes = Array.from(hsmlEl.getElementsByTagName('script')); }
       else { const spaceEl = xml.getElementsByTagName('space')[0] || null; if (spaceEl) scriptNodes = Array.from(spaceEl.getElementsByTagName('script')); }
-      if (scriptNodes.length){
-        for (let i=0;i<scriptNodes.length;i++){
-          const node=scriptNodes[i];
-          const src=node.getAttribute('src');
-          const codeAttr=node.getAttribute('code');
-          const inline=(node.textContent||'').trim();
-          if(src){ fetch(src).then(r=>r.text()).then(code=>runSandbox(code)).catch(err=>console.error('Script load error',src,err)); }
-          else if(codeAttr && codeAttr.trim()) { runSandbox(codeAttr); }
-          else if(inline){ runSandbox(inline); }
+      if (scriptNodes.length) {
+        for (let i = 0; i < scriptNodes.length; i++) {
+          const node = scriptNodes[i];
+          const src = node.getAttribute('src');
+          const codeAttr = node.getAttribute('code');
+          const inline = (node.textContent || '').trim();
+          if (src) { fetch(src).then(r => r.text()).then(code => runSandbox(code)).catch(err => console.error('Script load error', src, err)); }
+          else if (codeAttr && codeAttr.trim()) { runSandbox(codeAttr); }
+          else if (inline) { runSandbox(inline); }
         }
       }
 
@@ -1461,117 +1768,117 @@
       player.position.set(sx, sy, sz);
       const gy = getGroundHeightAt(player.position.x, player.position.z);
       if (player.position.y - player.eyeHeight < gy) { player.position.y = gy + player.eyeHeight; }
-      player.velY=0; player.grounded=false; 
+      player.velY = 0; player.grounded = false;
       xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
-      if(!input.isXR){ camera.position.set(0, player.eyeHeight, 0); yaw = (metaSpawn && metaSpawn.yaw !== undefined) ? metaSpawn.yaw : 0; pitch = (metaSpawn && metaSpawn.pitch !== undefined) ? metaSpawn.pitch : 0; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); }
+      if (!input.isXR) { camera.position.set(0, player.eyeHeight, 0); yaw = (metaSpawn && metaSpawn.yaw !== undefined) ? metaSpawn.yaw : 0; pitch = (metaSpawn && metaSpawn.pitch !== undefined) ? metaSpawn.pitch : 0; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); }
     }
 
     // Track last HSML source to support sandbox navigation-like behavior
     let lastHSMLSource = null; // { type: 'url'|'string', value: string }
-    function sandboxNavigate(url, replace=false){
-      try{
+    function sandboxNavigate(url, replace = false) {
+      try {
         const urlInputEl = document.getElementById('urlInput');
-        if (url && url.trim().startsWith('<')){
-          lastHSMLSource = { type:'string', value:url };
+        if (url && url.trim().startsWith('<')) {
+          lastHSMLSource = { type: 'string', value: url };
           importHSMLFromString(url);
           return;
         }
         if (!url) return;
         if (urlInputEl) urlInputEl.value = url;
-        try{ const hash = '#level='+encodeURIComponent(url); if(replace) history.replaceState({}, '', hash); else history.pushState({}, '', hash); }catch(_){ }
-        fetch(url).then(r=>r.text()).then(txt=>{ lastHSMLSource = { type:'url', value:url }; importHSMLFromString(txt); }).catch(e=>console.error('Sandbox navigate error', url, e));
-      }catch(e){ console.error('sandboxNavigate error', e); }
+        try { const hash = '#level=' + encodeURIComponent(url); if (replace) history.replaceState({}, '', hash); else history.pushState({}, '', hash); } catch (_) { }
+        fetch(url).then(r => r.text()).then(txt => { lastHSMLSource = { type: 'url', value: url }; importHSMLFromString(txt); }).catch(e => console.error('Sandbox navigate error', url, e));
+      } catch (e) { console.error('sandboxNavigate error', e); }
     }
 
-    function runSandbox(code){
+    function runSandbox(code) {
       try {
-        function currentURL(){
-          try{ if (!lastHSMLSource) return new URL(window.location.origin); if (lastHSMLSource.type === 'url') return new URL(lastHSMLSource.value, window.location.origin); }catch(_){ }
+        function currentURL() {
+          try { if (!lastHSMLSource) return new URL(window.location.origin); if (lastHSMLSource.type === 'url') return new URL(lastHSMLSource.value, window.location.origin); } catch (_) { }
           return null;
         }
         const sandboxLocation = {
-          get href(){ const u=currentURL(); return u ? u.href : 'inline:hsml'; },
-          set href(v){ sandboxNavigate(String(v)); },
-          assign(v){ sandboxNavigate(String(v), false); },
-          replace(v){ sandboxNavigate(String(v), true); },
-          reload(){ if(!lastHSMLSource) return; if(lastHSMLSource.type==='url'){ sandboxNavigate(lastHSMLSource.value, true); } else { importHSMLFromString(lastHSMLSource.value); } },
-          get origin(){ const u=currentURL(); return u ? u.origin : window.location.origin; },
-          get protocol(){ const u=currentURL(); return u ? u.protocol : window.location.protocol; },
-          get host(){ const u=currentURL(); return u ? u.host : window.location.host; },
-          get hostname(){ const u=currentURL(); return u ? u.hostname : window.location.hostname; },
-          get port(){ const u=currentURL(); return u ? u.port : window.location.port; },
-          get pathname(){ const u=currentURL(); return u ? u.pathname : '/'; },
-          get search(){ const u=currentURL(); return u ? u.search : ''; },
-          get hash(){ const u=currentURL(); return u ? u.hash : ''; },
-          toString(){ return this.href; }
+          get href() { const u = currentURL(); return u ? u.href : 'inline:hsml'; },
+          set href(v) { sandboxNavigate(String(v)); },
+          assign(v) { sandboxNavigate(String(v), false); },
+          replace(v) { sandboxNavigate(String(v), true); },
+          reload() { if (!lastHSMLSource) return; if (lastHSMLSource.type === 'url') { sandboxNavigate(lastHSMLSource.value, true); } else { importHSMLFromString(lastHSMLSource.value); } },
+          get origin() { const u = currentURL(); return u ? u.origin : window.location.origin; },
+          get protocol() { const u = currentURL(); return u ? u.protocol : window.location.protocol; },
+          get host() { const u = currentURL(); return u ? u.host : window.location.host; },
+          get hostname() { const u = currentURL(); return u ? u.hostname : window.location.hostname; },
+          get port() { const u = currentURL(); return u ? u.port : window.location.port; },
+          get pathname() { const u = currentURL(); return u ? u.pathname : '/'; },
+          get search() { const u = currentURL(); return u ? u.search : ''; },
+          get hash() { const u = currentURL(); return u ? u.hash : ''; },
+          toString() { return this.href; }
         };
-        const fn=new Function('dimension','setUpdate','setTimeout','setInterval','location', code);
+        const fn = new Function('dimension', 'setUpdate', 'setTimeout', 'setInterval', 'location', code);
         fn(dimension, setUpdate, setTimeout, setInterval, sandboxLocation);
-      } catch(err){ console.error('HSML <script> error:', err); }
+      } catch (err) { console.error('HSML <script> error:', err); }
     }
 
-    function runSandboxWithState(code, stateOverlay){
+    function runSandboxWithState(code, stateOverlay) {
       const backup = new Map();
-      if (stateOverlay && typeof stateOverlay === 'object'){
-        for (const k of Object.keys(stateOverlay)){
+      if (stateOverlay && typeof stateOverlay === 'object') {
+        for (const k of Object.keys(stateOverlay)) {
           backup.set(k, Object.prototype.hasOwnProperty.call(dimension.state, k) ? dimension.state[k] : Symbol.for('@@__unset'));
           dimension.state[k] = stateOverlay[k];
         }
       }
-      try{ runSandbox(code); }
+      try { runSandbox(code); }
       finally {
-        if (backup.size){ for (const [k, v] of backup.entries()){ if (v === Symbol.for('@@__unset')) delete dimension.state[k]; else dimension.state[k] = v; } }
+        if (backup.size) { for (const [k, v] of backup.entries()) { if (v === Symbol.for('@@__unset')) delete dimension.state[k]; else dimension.state[k] = v; } }
       }
     }
 
     // ----------------- UI Eventos -----------------
     document.getElementById('loadButton').addEventListener('click', loadHSML);
     document.getElementById('reloadBtn').addEventListener('click', loadHSML);
-    document.getElementById('exportBtn').addEventListener('click', ()=>{ const text=dimension.toHSML(); const blob=new Blob([text], {type:'application/xml'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='scene.hsml'; a.click(); URL.revokeObjectURL(url); });
-    const devPanel=document.getElementById('devPanel'); const toggleDevPanelBtn=document.getElementById('toggleDevPanel'); toggleDevPanelBtn.addEventListener('click',()=>{ if(devPanel.style.display==='none' || devPanel.style.display===''){ devPanel.style.display='block'; isDevPanelOpen = true; devtoolDirty = true; } else { devPanel.style.display='none'; isDevPanelOpen = false; } });
-    const inspectorView=document.getElementById('inspectorView'); const statusView=document.getElementById('statusView');
-    document.getElementById('inspectorTabBtn').addEventListener('click',()=>{ inspectorView.style.display='block'; statusView.style.display='none'; });
-    document.getElementById('statusTabBtn').addEventListener('click',()=>{ inspectorView.style.display='none'; statusView.style.display='block'; });
-    document.getElementById('toggleFreeCameraBtn').addEventListener('click',()=>{ if(document.pointerLockElement!==canvas) canvas.requestPointerLock(); else document.exitPointerLock(); });
-    document.getElementById('toggleLightingBtn').addEventListener('click',()=>{ lightingEnabled=!lightingEnabled; if(lightingEnabled){ if(!scene.children.includes(ambientLight)) scene.add(ambientLight); if(!scene.children.includes(dirLight)) scene.add(dirLight); } else { scene.remove(ambientLight); scene.remove(dirLight); } });
-    document.getElementById('toggleGridBtn').addEventListener('click',()=>{ gridHelper.visible=!gridHelper.visible; axesHelper.visible=gridHelper.visible; });
-    document.getElementById('urlInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') loadHSML(); });
+    document.getElementById('exportBtn').addEventListener('click', () => { const text = dimension.toHSML(); const blob = new Blob([text], { type: 'application/xml' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'scene.hsml'; a.click(); URL.revokeObjectURL(url); });
+    const devPanel = document.getElementById('devPanel'); const toggleDevPanelBtn = document.getElementById('toggleDevPanel'); toggleDevPanelBtn.addEventListener('click', () => { if (devPanel.style.display === 'none' || devPanel.style.display === '') { devPanel.style.display = 'block'; isDevPanelOpen = true; devtoolDirty = true; } else { devPanel.style.display = 'none'; isDevPanelOpen = false; } });
+    const inspectorView = document.getElementById('inspectorView'); const statusView = document.getElementById('statusView');
+    document.getElementById('inspectorTabBtn').addEventListener('click', () => { inspectorView.style.display = 'block'; statusView.style.display = 'none'; });
+    document.getElementById('statusTabBtn').addEventListener('click', () => { inspectorView.style.display = 'none'; statusView.style.display = 'block'; });
+    document.getElementById('toggleFreeCameraBtn').addEventListener('click', () => { if (document.pointerLockElement !== canvas) canvas.requestPointerLock(); else document.exitPointerLock(); });
+    document.getElementById('toggleLightingBtn').addEventListener('click', () => { lightingEnabled = !lightingEnabled; if (lightingEnabled) { if (!scene.children.includes(ambientLight)) scene.add(ambientLight); if (!scene.children.includes(dirLight)) scene.add(dirLight); } else { scene.remove(ambientLight); scene.remove(dirLight); } });
+    document.getElementById('toggleGridBtn').addEventListener('click', () => { gridHelper.visible = !gridHelper.visible; axesHelper.visible = gridHelper.visible; });
+    document.getElementById('urlInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadHSML(); });
 
     // --------- Favoritos / Inicio / Opciones ---------
     const LS_FAVS = 'hsml:favorites';
     const LS_HOME = 'hsml:home';
     const favAddBtn = document.getElementById('favAddBtn');
-    const favList   = document.getElementById('favList');
-    const favGoBtn  = document.getElementById('favGoBtn');
+    const favList = document.getElementById('favList');
+    const favGoBtn = document.getElementById('favGoBtn');
     const homeGoBtn = document.getElementById('homeGoBtn');
-    const homeSetBtn= document.getElementById('homeSetBtn');
-    const optionsBtn= document.getElementById('optionsBtn');
-    const optionsPanel=document.getElementById('optionsPanel');
+    const homeSetBtn = document.getElementById('homeSetBtn');
+    const optionsBtn = document.getElementById('optionsBtn');
+    const optionsPanel = document.getElementById('optionsPanel');
     const homeInput = document.getElementById('homeInput');
-    const homeSaveBtn=document.getElementById('homeSaveBtn');
-    const optionsCloseBtn=document.getElementById('optionsCloseBtn');
+    const homeSaveBtn = document.getElementById('homeSaveBtn');
+    const optionsCloseBtn = document.getElementById('optionsCloseBtn');
 
-    function loadFavs(){ try{ return JSON.parse(localStorage.getItem(LS_FAVS)||'[]'); }catch(_){ return []; } }
-    function saveFavs(arr){ try{ localStorage.setItem(LS_FAVS, JSON.stringify(arr)); }catch(_){ } }
-    function renderFavs(){ const favs=loadFavs(); if(favList){ favList.innerHTML=''; favs.forEach((f)=>{ const opt=document.createElement('option'); opt.value=f; opt.textContent=f; favList.appendChild(opt); }); } }
-    function addFav(v){ if(!v||!v.trim()) return; const favs=loadFavs(); if(!favs.includes(v)) { favs.push(v); saveFavs(favs); renderFavs(); } }
+    function loadFavs() { try { return JSON.parse(localStorage.getItem(LS_FAVS) || '[]'); } catch (_) { return []; } }
+    function saveFavs(arr) { try { localStorage.setItem(LS_FAVS, JSON.stringify(arr)); } catch (_) { } }
+    function renderFavs() { const favs = loadFavs(); if (favList) { favList.innerHTML = ''; favs.forEach((f) => { const opt = document.createElement('option'); opt.value = f; opt.textContent = f; favList.appendChild(opt); }); } }
+    function addFav(v) { if (!v || !v.trim()) return; const favs = loadFavs(); if (!favs.includes(v)) { favs.push(v); saveFavs(favs); renderFavs(); } }
 
-    if(favAddBtn) favAddBtn.addEventListener('click', ()=>{ const v=document.getElementById('urlInput').value.trim(); if(v) addFav(v); });
-    if(favGoBtn) favGoBtn.addEventListener('click', ()=>{ const v=favList.value; if(v){ document.getElementById('urlInput').value=v; loadHSML(); }});
-    if(favList) favList.addEventListener('dblclick', ()=>{ const v=favList.value; if(v){ document.getElementById('urlInput').value=v; loadHSML(); }});
+    if (favAddBtn) favAddBtn.addEventListener('click', () => { const v = document.getElementById('urlInput').value.trim(); if (v) addFav(v); });
+    if (favGoBtn) favGoBtn.addEventListener('click', () => { const v = favList.value; if (v) { document.getElementById('urlInput').value = v; loadHSML(); } });
+    if (favList) favList.addEventListener('dblclick', () => { const v = favList.value; if (v) { document.getElementById('urlInput').value = v; loadHSML(); } });
 
-    function getHome(){ try{ return localStorage.getItem(LS_HOME)||''; }catch(_){ return '';} }
-    function setHome(v){ try{ localStorage.setItem(LS_HOME, v||''); }catch(_){ } }
-    if(homeGoBtn) homeGoBtn.addEventListener('click', ()=>{ const v=getHome(); if(v){ document.getElementById('urlInput').value=v; loadHSML(); }});
-    if(homeSetBtn) homeSetBtn.addEventListener('click', ()=>{ const v=document.getElementById('urlInput').value.trim(); if(v){ setHome(v); if(homeInput) homeInput.value=v; }});
-    if(optionsBtn) optionsBtn.addEventListener('click', ()=>{ if(!optionsPanel) return; optionsPanel.style.display = (optionsPanel.style.display==='none'||optionsPanel.style.display==='')? 'block':'none'; if(homeInput) homeInput.value=getHome(); });
-    if(homeSaveBtn) homeSaveBtn.addEventListener('click', ()=>{ if(!homeInput) return; setHome(homeInput.value.trim()); if(optionsPanel) optionsPanel.style.display='none'; });
-    if(optionsCloseBtn) optionsCloseBtn.addEventListener('click', ()=>{ if(optionsPanel) optionsPanel.style.display='none'; });
+    function getHome() { try { return localStorage.getItem(LS_HOME) || ''; } catch (_) { return ''; } }
+    function setHome(v) { try { localStorage.setItem(LS_HOME, v || ''); } catch (_) { } }
+    if (homeGoBtn) homeGoBtn.addEventListener('click', () => { const v = getHome(); if (v) { document.getElementById('urlInput').value = v; loadHSML(); } });
+    if (homeSetBtn) homeSetBtn.addEventListener('click', () => { const v = document.getElementById('urlInput').value.trim(); if (v) { setHome(v); if (homeInput) homeInput.value = v; } });
+    if (optionsBtn) optionsBtn.addEventListener('click', () => { if (!optionsPanel) return; optionsPanel.style.display = (optionsPanel.style.display === 'none' || optionsPanel.style.display === '') ? 'block' : 'none'; if (homeInput) homeInput.value = getHome(); });
+    if (homeSaveBtn) homeSaveBtn.addEventListener('click', () => { if (!homeInput) return; setHome(homeInput.value.trim()); if (optionsPanel) optionsPanel.style.display = 'none'; });
+    if (optionsCloseBtn) optionsCloseBtn.addEventListener('click', () => { if (optionsPanel) optionsPanel.style.display = 'none'; });
 
     renderFavs();
 
     // ----------------- Demo por defecto mínima -----------------
-const DEFAULT_HSML = `
+    const DEFAULT_HSML = `
 <space>
   <light type="ambient" intensity="0.7" />
   <light type="directional" intensity="1.2" />
@@ -1597,4 +1904,5 @@ const DEFAULT_HSML = `
     loadHSML();
   </script>
 </body>
+
 </html>
