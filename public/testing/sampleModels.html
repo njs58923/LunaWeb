@@ -1,0 +1,90 @@
+<hsml>
+  <head></head>
+
+  <space>
+    <!-- Se mantiene estático -->
+    <include src="testing/houseTest.html" data-title="Sala de pruebas: Modelos"/>
+
+  </space>
+
+  <script>
+    // ========= Config =========
+    // Lista de modelos (agregá los que quieras)
+    const MODELS = [
+      { name: 'abandoned_brick.glb', src: 'models/abandoned_brick.glb' },
+      { name: 'vr_art.glb',         src: 'models/vr_art.glb' }
+      // { name: 'otro.glb', src: 'models/otro.glb' },
+    ];
+
+    // Layout de los botones
+    const BTN = {
+      startX: -1.5,   // X inicial
+      stepX:  1.6,    // separación horizontal
+      z:      -5.0,   // Z fija para la fila
+      y:       1,  // altura del botón
+      w:       1,   // ancho
+      h:       1,  // alto
+      d:       1    // profundidad
+    };
+
+    // Dónde aparece el modelo cargado (coordenadas del “stage”)
+    const STAGE_POS = { x: 0, y: 0.001, z: -2.2, scale: 1 };
+
+    // ========= Lógica =========
+    // Mantengo referencia al modelo actual para reemplazarlo
+    let currentModelId = 'loadedModel';
+
+    function spawnModel(src){
+      // Si ya hay un modelo cargado, lo quito
+      const existing = dimension.get(currentModelId);
+      if (existing){
+         dimension.remove(currentModelId);
+      }
+
+      // Creo el nuevo
+      const model = dimension.create('model', {
+        id: currentModelId,
+        src,
+        x: STAGE_POS.x, y: STAGE_POS.y, z: STAGE_POS.z,
+        scale: STAGE_POS.scale
+      });
+      dimension.appendChild(model);
+    }
+
+    // Genero los botones (+ label) a partir del array
+    MODELS.forEach((item, i)=>{
+      const x = BTN.startX + i * BTN.stepX;
+
+      // Botón (BOX) con colisión para recibir "toque"
+      const btn = dimension.create('box', {
+        width: BTN.w, height: BTN.h, depth: BTN.d,
+        x, y: BTN.y, z: BTN.z,
+        color: '#3a3a3a',
+        collider: 'true'         // habilita hit-test
+      });
+
+      // Label (TEXT) encima del botón
+      const label = dimension.create('text', {
+        text: item.name,
+        fontSize: 28,
+        color: '#ffffff',
+        unitsperpx: 0.002,
+        x, y: BTN.y + 0.22, z: BTN.z
+      });
+
+      // Interacción: tocar = cargar el modelo
+      btn.addEventListener('toque', ()=>{
+        spawnModel(item.src);
+        // feedback visual rápido
+        btn.setAttribute('color', '#5c6bc0'); // highlight
+        setTimeout(()=> btn.setAttribute('color', '#3a3a3a'), 200);
+      });
+
+      dimension.appendChild(btn);
+      dimension.appendChild(label);
+    });
+
+    // Opcional: cargar el primero por defecto
+    if (MODELS.length) spawnModel(MODELS[0].src);
+  </script>
+</hsml>

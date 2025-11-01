@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Framework V3.1 • Espacios Virtuales (HSML) — Optimizada</title>
+  <title>Framework V3.2 • Espacios Virtuales (HSML)</title>
   <style>
     :root { --bg:#181818; --fg:#eee; --panel:#222; --btn:#444; --btnH:#666; }
     body { margin:0; overflow:hidden; display:flex; flex-direction:column; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; background:var(--bg); color:var(--fg); }
@@ -93,6 +93,7 @@
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { VRButton } from 'three/addons/webxr/VRButton.js';
     import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+    import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
     // ===================== Núcleo V3.1 (optimizado esencial) =====================
     class VirtualNode { 
@@ -271,6 +272,45 @@
     // ----------------- Construcción de escena (tags genéricos) -----------------
     const mixers = new Set();
 
+    const gltfCache = new Map();
+    async function getGLTF(src){
+      if(gltfCache.has(src)){
+        const { scene, animations } = gltfCache.get(src);
+        return { scene: scene.clone(true), animations: animations.slice() };
+      }
+      const loader = new GLTFLoader();
+      return new Promise((resolve,reject)=>{
+        loader.load(src, (gltf)=>{
+          const pack = { scene: gltf.scene, animations: gltf.animations || [] };
+          gltfCache.set(src, pack);
+          resolve({ scene: pack.scene.clone(true), animations: pack.animations.slice() });
+        }, undefined, reject);
+      });
+    }
+
+    const animByKey = new Map(); 
+    function initAnimFor(key, root, clips=[]){
+      const mixer = new THREE.AnimationMixer(root);
+      mixers.add(mixer);
+      const st = { mixer, root, clips:new Map(), actions:new Map(), timeScale:1 };
+      for(const c of (clips||[])){
+        st.clips.set(c.name || `clip${st.clips.size}`, c);
+      }
+      animByKey.set(key, st);
+      return st;
+    }
+    function getAnimStateByVNode(v){
+      if(!v) return null;
+      return animByKey.get(v.key) || null;
+    }
+    function disposeAnimForKey(key){
+      const st = animByKey.get(key);
+      if(!st) return;
+      try{ st.actions.forEach(a=>a.stop()); }catch(_){}
+      mixers.delete(st.mixer);
+      animByKey.delete(key);
+    }
+
     function getDefaultMaterial(attrs){
       const color = attrs.color ? new THREE.Color(attrs.color) : new THREE.Color('#cccccc');
       const mat = lightingEnabled ? new THREE.MeshStandardMaterial({ color, metalness: parseFloat(attrs.metalness ?? 0), roughness: parseFloat(attrs.roughness ?? 1), emissive: new THREE.Color(attrs.emissive||'#000000') }) : new THREE.MeshBasicMaterial({ color });
@@ -397,9 +437,6 @@
       return mesh;
     }
 
-    const gltfCache = new Map();
-    async function getGLTFScene(src){ if(gltfCache.has(src)) return gltfCache.get(src).clone(true); const loader=new GLTFLoader(); return new Promise((resolve,reject)=>{ loader.load(src, (gltf)=>{ gltfCache.set(src,gltf.scene); resolve(gltf.scene.clone(true)); const mixer=new THREE.AnimationMixer(gltf.scene); mixers.add(mixer); if(gltf.animations && gltf.animations.length){ const clip = gltf.animations[0]; mixer.clipAction(clip).play(); } }, undefined, reject); }); }
-
     function clearColliders(){ staticColliders.length=0; keyToCollider.clear(); }
 
     function isColliderEnabled(attrs){
@@ -513,7 +550,18 @@
           if (includeUrl) { obj.userData.includeSrc = includeUrl; obj.userData.includeBase = includeUrl; }
         }
       }
-      else if (tag==='model') { obj=new THREE.Object3D(); const src=a.src; if(src){ getGLTFScene(src).then(sceneChild=>{ while(obj.children.length>0) obj.remove(obj.children[0]); obj.add(sceneChild); }).catch(err=>console.error('GLTF load error',src,err)); } }
+      else if (tag==='model') {
+        obj = new THREE.Object3D();
+        const src = a.src;
+        if(src){
+          const ready = getGLTF(src).then(({ scene: child, animations })=>{
+            while(obj.children.length>0) obj.remove(obj.children[0]);
+            obj.add(child);
+            initAnimFor(vnode.key, child, animations);
+          }).catch(err=>console.error('GLTF load error',src,err));
+          obj.userData.modelReady = ready;
+        }
+      }
       else if (tag==='box') { const w=parseFloat(a.width??1), h=parseFloat(a.height??1), d=parseFloat(a.depth??1); const geo=new THREE.BoxGeometry(w,h,d); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
       else if (tag==='sphere'){ const r=parseFloat(a.radius??0.5), ws=parseInt(a.widthSegments??16), hs=parseInt(a.heightSegments??12); const geo=new THREE.SphereGeometry(r,ws,hs); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
       else if (tag==='plane'){ const w=parseFloat(a.width??5), h=parseFloat(a.height??5); const geo=new THREE.PlaneGeometry(w,h); const mesh=new THREE.Mesh(geo, getDefaultMaterial(a)); mesh.rotation.x=-Math.PI/2; obj=mesh; }
@@ -591,6 +639,7 @@
             const o = nodeKeyToObject.get(k);
             if (o) { stopAudioRecursive(o); if (o.parent) o.parent.remove(o); }
             nodeKeyToObject.delete(k);
+            disposeAnimForKey(k);
           }
           obj.userData.includeKeys = new Set();
         }
@@ -699,7 +748,9 @@
 
     // ----------------- DevTools -----------------
     function updateDevTool(){ const treeView=document.getElementById('treeView'); treeView.innerHTML=''; if(!virtualDOM) return; const domTree=buildVirtualTreeHTML(virtualDOM); if(domTree) treeView.appendChild(domTree); }
-    function buildVirtualTreeHTML(vnode){ const li=document.createElement('li'); const header=document.createElement('div'); header.style.display='flex'; header.style.flexWrap='wrap'; header.style.alignItems='center'; const tagSpan=document.createElement('span'); tagSpan.textContent=`<${vnode.tag}>`; header.appendChild(tagSpan); for(const an in vnode.attributes){ const av=vnode.attributes[an]; const label=document.createElement('span'); label.classList.add('attrLabel'); label.textContent=` ${an}="`; const inp=document.createElement('span'); inp.classList.add('attrInput'); inp.contentEditable=true; inp.textContent=av; inp.addEventListener('blur',()=>{ vnode.attributes[an]=inp.textContent.trim(); markDirty(vnode); scheduleDevToolUpdate(); }); label.appendChild(inp); const q=document.createElement('span'); q.textContent='"'; label.appendChild(q); header.appendChild(label); } const centerBtn=document.createElement('button'); centerBtn.textContent='Centrar'; centerBtn.classList.add('actionBtn'); centerBtn.addEventListener('click',e=>{ e.stopPropagation(); scene.traverse(obj=>{ if(obj.userData && obj.userData.key===vnode.key) centerCameraOnObject(obj); }); }); header.appendChild(centerBtn); const removeBtn=document.createElement('button'); removeBtn.textContent='Eliminar'; removeBtn.classList.add('actionBtn'); removeBtn.addEventListener('click',e=>{ e.stopPropagation(); removeNodeByKey(virtualDOM, vnode.key); const obj=nodeKeyToObject.get(vnode.key); if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); } nodeKeyToObject.delete(vnode.key); scheduleDevToolUpdate(); }); header.appendChild(removeBtn); li.appendChild(header); if(vnode.children.length>0){ const ul=document.createElement('ul'); vnode.children.forEach(ch=>{ const c=buildVirtualTreeHTML(ch); if(c) ul.appendChild(c); }); li.appendChild(ul); } return li; }
+    function buildVirtualTreeHTML(vnode){ const li=document.createElement('li'); const header=document.createElement('div'); header.style.display='flex'; header.style.flexWrap='wrap'; header.style.alignItems='center'; const tagSpan=document.createElement('span'); tagSpan.textContent=`<${vnode.tag}>`; header.appendChild(tagSpan); for(const an in vnode.attributes){ const av=vnode.attributes[an]; const label=document.createElement('span'); label.classList.add('attrLabel'); label.textContent=` ${an}="`; const inp=document.createElement('span'); inp.classList.add('attrInput'); inp.contentEditable=true; inp.textContent=av; inp.addEventListener('blur',()=>{ vnode.attributes[an]=inp.textContent.trim(); markDirty(vnode); scheduleDevToolUpdate(); }); label.appendChild(inp); const q=document.createElement('span'); q.textContent='"'; label.appendChild(q); header.appendChild(label); } const centerBtn=document.createElement('button'); centerBtn.textContent='Centrar'; centerBtn.classList.add('actionBtn'); centerBtn.addEventListener('click',e=>{ e.stopPropagation(); scene.traverse(obj=>{ if(obj.userData && obj.userData.key===vnode.key) centerCameraOnObject(obj); }); }); header.appendChild(centerBtn); const removeBtn=document.createElement('button'); removeBtn.textContent='Eliminar'; removeBtn.classList.add('actionBtn'); removeBtn.addEventListener('click',e=>{ e.stopPropagation(); removeNodeByKey(virtualDOM, vnode.key); const obj=nodeKeyToObject.get(vnode.key); if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); } nodeKeyToObject.delete(vnode.key); // (6) limpiar animación
+      disposeAnimForKey(vnode.key);
+      scheduleDevToolUpdate(); }); header.appendChild(removeBtn); li.appendChild(header); if(vnode.children.length>0){ const ul=document.createElement('ul'); vnode.children.forEach(ch=>{ const c=buildVirtualTreeHTML(ch); if(c) ul.appendChild(c); }); li.appendChild(ul); } return li; }
     function removeNodeByKey(rootVNode,key){ if(!rootVNode||!rootVNode.children) return false; for(let i=0;i<rootVNode.children.length;i++){ if(rootVNode.children[i].key===key){ rootVNode.children.splice(i,1); return true; } else { if(removeNodeByKey(rootVNode.children[i],key)) return true; } } return false; }
     function centerCameraOnObject(obj){ const pos=new THREE.Vector3(); obj.getWorldPosition(pos); player.position.set(pos.x, player.position.y, pos.z+5); yaw = Math.atan2((player.position.x - pos.x), (player.position.z - pos.z)); if(!input.isXR){ camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z); }
 
@@ -1192,6 +1243,8 @@
       if(controllerState.enabled && controllerState.update) controllerState.update(dt);
       checkVRTouchesOptimizado();
 
+      mixers.forEach(m=>{ try{ m.update(dt); }catch(_){} });
+
       updateStats(now); 
       maybeUpdateDevTool(); 
       renderer.render(scene,camera); 
@@ -1204,7 +1257,7 @@
       createElement: (tag)=>createProxiedNode(tag),
       create(tag, attrs={}, children=[]) { const node=createProxiedNode(tag); Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,v)); children.forEach(ch=>node.appendChild(ch)); return node; },
       appendChild(child){ if(!virtualDOM){ console.warn('No virtualDOM'); return; } virtualDOM.children.push(child); buildSceneFromVirtual(child, scene); scheduleDevToolUpdate(); },
-      remove(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return; removeNodeByKey(virtualDOM, v.key); const obj=nodeKeyToObject.get(v.key); if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); } nodeKeyToObject.delete(v.key); scheduleDevToolUpdate(); },
+      remove(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return; removeNodeByKey(virtualDOM, v.key); const obj=nodeKeyToObject.get(v.key); if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); } nodeKeyToObject.delete(v.key); disposeAnimForKey(v.key); scheduleDevToolUpdate(); },
       find(selector){ if(!selector) return []; if(selector.startsWith('#')){ const v=idToVNode.get(selector.slice(1)); return v ? [createProxiedNode(v)] : []; } if(selector.startsWith('.')){ const set=classToVNodes.get(selector.slice(1)); return set ? Array.from(set).map(v=>createProxiedNode(v)) : []; } const out=[]; (function walk(v){ if(!v) return; if(v.tag===selector) out.push(createProxiedNode(v)); (v.children||[]).forEach(walk); })(virtualDOM); return out; },
       getObjectFor(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return null; return nodeKeyToObject.get(v.key)||null; },
       behavior(name,factory){ behaviorRegistry.set(name, factory); },
@@ -1251,6 +1304,85 @@
       math: MATH
     };
 
+    function resolveVNode(nodeOrId){
+      if(typeof nodeOrId === 'string'){
+        return idToVNode.get(nodeOrId) || null;
+      }
+      if(nodeOrId && typeof nodeOrId === 'object'){
+        const k = nodeOrId.key ?? (nodeOrId.attributes?.id && idToVNode.get(nodeOrId.attributes.id)?.key);
+        if(k && keyToVNode.has(k)) return keyToVNode.get(k);
+      }
+      return null;
+    }
+
+    dimension.anim = {
+      async ready(nodeOrId){
+        const v = resolveVNode(nodeOrId); if(!v) return false;
+        const o = nodeKeyToObject.get(v.key);
+        if(o?.userData?.modelReady) await o.userData.modelReady;
+        return true;
+      },
+      list(nodeOrId){
+        const v = resolveVNode(nodeOrId); if(!v) return [];
+        const st = getAnimStateByVNode(v); if(!st) return [];
+        return Array.from(st.clips.keys());
+      },
+      play(nodeOrId, nameOrIndex, opts={}){
+        const v = resolveVNode(nodeOrId); if(!v) return null;
+        const st = getAnimStateByVNode(v); if(!st) return null;
+
+        const list = Array.from(st.clips.entries());
+        let entry = null;
+        if(typeof nameOrIndex === 'number') entry = list[nameOrIndex] || null;
+        else entry = st.clips.has(nameOrIndex) ? [nameOrIndex, st.clips.get(nameOrIndex)] : list.find(([n])=>n===nameOrIndex) || null;
+        if(!entry) return null;
+
+        const [clipName, clip] = entry;
+        const action = st.mixer.clipAction(clip);
+        const fade = Math.max(0, opts.fade||0);
+        const loopMode = (opts.loop==='once') ? THREE.LoopOnce : THREE.LoopRepeat;
+        action.reset();
+        action.setLoop(loopMode, Infinity);
+        action.clampWhenFinished = !!opts.clampWhenFinished;
+        action.timeScale = (opts.timeScale!=null ? opts.timeScale : 1);
+
+        if(fade>0){
+          st.actions.forEach(a=>a.crossFadeTo(action, fade, false));
+          action.play();
+        }else{
+          st.actions.forEach(a=>a.stop());
+          action.play();
+        }
+        st.actions.set(clipName, action);
+        return action;
+      },
+      stop(nodeOrId, name=null){
+        const v = resolveVNode(nodeOrId); if(!v) return;
+        const st = getAnimStateByVNode(v); if(!st) return;
+        if(!name){ st.actions.forEach(a=>a.stop()); st.actions.clear(); return; }
+        const a = st.actions.get(name);
+        if(a){ a.stop(); st.actions.delete(name); }
+      },
+      async load(nodeOrId, url, { take=null, retarget=true }={}){
+        const v = resolveVNode(nodeOrId); if(!v) return [];
+        const st = getAnimStateByVNode(v); if(!st) return [];
+        const { scene: srcScene, animations } = await getGLTF(url);
+        const added = [];
+        for(const clip of (animations||[])){
+          if(take && !String(clip.name||'').includes(take)) continue;
+          let out = clip;
+          if(retarget && SkeletonUtils?.retargetClip){
+            try{ out = SkeletonUtils.retargetClip(st.root, srcScene, clip); }
+            catch(e){ console.warn('retargetClip falló, uso clip original', e); }
+          }
+          const name = out.name || clip.name || `ext${st.clips.size}`;
+          st.clips.set(name, out);
+          added.push(name);
+        }
+        return added;
+      }
+    };
+
     const behaviorRegistry = new Map();
     function setUpdate(fn){ userUpdateFunctions.add(fn); }
     function serializeHSML(vnode){ if(!vnode) return ''; const attrs=Object.entries(vnode.attributes).map(([k,v])=>`${k}="${String(v)}"`).join(' '); const open=attrs?`<${vnode.tag} ${attrs}>`:`<${vnode.tag}>`; if(!vnode.children||vnode.children.length===0) return `${open}</${vnode.tag}>`; return `${open}${vnode.children.map(serializeHSML).join('')}</${vnode.tag}>`; }
@@ -1293,6 +1425,8 @@
       if (typeof hsml === 'string') { hsml = hsml.replace(/<\\\/script>/g, '<\/script>'); }
       scene.children.slice().forEach(obj=>{ const keep = (obj===gridHelper)||(obj===axesHelper)||(obj===ambientLight)||(obj===dirLight)||(obj===xrRig); if(!keep){ stopAudioRecursive(obj); scene.remove(obj); } });
       nodeKeyToObject.clear(); VirtualNode.nextKey=1; userUpdateFunctions.clear(); clearColliders();
+      animByKey.clear();
+      mixers.clear();
 
       const parsed = parseHSMLRootFromString(hsml);
       if(!parsed || !parsed.vnode){ console.error('No <hsml> o <space> root'); return; }
