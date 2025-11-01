@@ -574,13 +574,13 @@
           for (const k of keys) {
             removeNodeByKey(virtualDOM, k);
             const o = nodeKeyToObject.get(k);
-            if (o && o.parent) o.parent.remove(o);
+            if (o) { stopAudioRecursive(o); if (o.parent) o.parent.remove(o); }
             nodeKeyToObject.delete(k);
           }
           obj.userData.includeKeys = new Set();
         }
         // remover objetos hijos directos 3D
-        obj.children.slice().forEach(c => obj.remove(c));
+        obj.children.slice().forEach(c => { stopAudioRecursive(c); obj.remove(c); });
 
         if (!newSrc) {
           obj.userData.includeSrc = undefined;
@@ -682,7 +682,7 @@
 
     // ----------------- DevTools -----------------
     function updateDevTool(){ const treeView=document.getElementById('treeView'); treeView.innerHTML=''; if(!virtualDOM) return; const domTree=buildVirtualTreeHTML(virtualDOM); if(domTree) treeView.appendChild(domTree); }
-    function buildVirtualTreeHTML(vnode){ const li=document.createElement('li'); const header=document.createElement('div'); header.style.display='flex'; header.style.flexWrap='wrap'; header.style.alignItems='center'; const tagSpan=document.createElement('span'); tagSpan.textContent=`<${vnode.tag}>`; header.appendChild(tagSpan); for(const an in vnode.attributes){ const av=vnode.attributes[an]; const label=document.createElement('span'); label.classList.add('attrLabel'); label.textContent=` ${an}="`; const inp=document.createElement('span'); inp.classList.add('attrInput'); inp.contentEditable=true; inp.textContent=av; inp.addEventListener('blur',()=>{ vnode.attributes[an]=inp.textContent.trim(); scheduleDevToolUpdate(); }); label.appendChild(inp); const q=document.createElement('span'); q.textContent='"'; label.appendChild(q); header.appendChild(label); } const centerBtn=document.createElement('button'); centerBtn.textContent='Centrar'; centerBtn.classList.add('actionBtn'); centerBtn.addEventListener('click',e=>{ e.stopPropagation(); scene.traverse(obj=>{ if(obj.userData && obj.userData.key===vnode.key) centerCameraOnObject(obj); }); }); header.appendChild(centerBtn); const removeBtn=document.createElement('button'); removeBtn.textContent='Eliminar'; removeBtn.classList.add('actionBtn'); removeBtn.addEventListener('click',e=>{ e.stopPropagation(); removeNodeByKey(virtualDOM, vnode.key); const obj=nodeKeyToObject.get(vnode.key); if(obj&&obj.parent) obj.parent.remove(obj); nodeKeyToObject.delete(vnode.key); scheduleDevToolUpdate(); }); header.appendChild(removeBtn); li.appendChild(header); if(vnode.children.length>0){ const ul=document.createElement('ul'); vnode.children.forEach(ch=>{ const c=buildVirtualTreeHTML(ch); if(c) ul.appendChild(c); }); li.appendChild(ul); } return li; }
+    function buildVirtualTreeHTML(vnode){ const li=document.createElement('li'); const header=document.createElement('div'); header.style.display='flex'; header.style.flexWrap='wrap'; header.style.alignItems='center'; const tagSpan=document.createElement('span'); tagSpan.textContent=`<${vnode.tag}>`; header.appendChild(tagSpan); for(const an in vnode.attributes){ const av=vnode.attributes[an]; const label=document.createElement('span'); label.classList.add('attrLabel'); label.textContent=` ${an}="`; const inp=document.createElement('span'); inp.classList.add('attrInput'); inp.contentEditable=true; inp.textContent=av; inp.addEventListener('blur',()=>{ vnode.attributes[an]=inp.textContent.trim(); scheduleDevToolUpdate(); }); label.appendChild(inp); const q=document.createElement('span'); q.textContent='"'; label.appendChild(q); header.appendChild(label); } const centerBtn=document.createElement('button'); centerBtn.textContent='Centrar'; centerBtn.classList.add('actionBtn'); centerBtn.addEventListener('click',e=>{ e.stopPropagation(); scene.traverse(obj=>{ if(obj.userData && obj.userData.key===vnode.key) centerCameraOnObject(obj); }); }); header.appendChild(centerBtn); const removeBtn=document.createElement('button'); removeBtn.textContent='Eliminar'; removeBtn.classList.add('actionBtn'); removeBtn.addEventListener('click',e=>{ e.stopPropagation(); removeNodeByKey(virtualDOM, vnode.key); const obj=nodeKeyToObject.get(vnode.key); if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); } nodeKeyToObject.delete(vnode.key); scheduleDevToolUpdate(); }); header.appendChild(removeBtn); li.appendChild(header); if(vnode.children.length>0){ const ul=document.createElement('ul'); vnode.children.forEach(ch=>{ const c=buildVirtualTreeHTML(ch); if(c) ul.appendChild(c); }); li.appendChild(ul); } return li; }
     function removeNodeByKey(rootVNode,key){ if(!rootVNode||!rootVNode.children) return false; for(let i=0;i<rootVNode.children.length;i++){ if(rootVNode.children[i].key===key){ rootVNode.children.splice(i,1); return true; } else { if(removeNodeByKey(rootVNode.children[i],key)) return true; } } return false; }
     function centerCameraOnObject(obj){ const pos=new THREE.Vector3(); obj.getWorldPosition(pos); player.position.set(pos.x, player.position.y, pos.z+5); yaw = Math.atan2((player.position.x - pos.x), (player.position.z - pos.z)); if(!input.isXR){ camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); } xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z); }
 
@@ -714,6 +714,7 @@
     const audioLoader = new THREE.AudioLoader();
     function playSoundOneShot(url, volume=0.7){ const s = new THREE.Audio(audioListener); audioLoader.load(url, buffer=>{ s.setBuffer(buffer); s.setVolume(volume); s.play(); }); return s; }
     function attachPositionalAudio(obj, url, { loop=false, volume=0.6, refDistance=8 }={}){ const a = new THREE.PositionalAudio(audioListener); audioLoader.load(url, buffer=>{ a.setBuffer(buffer); a.setLoop(loop); a.setVolume(volume); a.setRefDistance(refDistance); a.play(); }); obj.add(a); return a; }
+    function stopAudioRecursive(root){ if(!root) return; const toStop=[]; root.traverse(n=>{ if(n.isAudio){ toStop.push(n); } if(n.userData && n.userData.audio){ toStop.push(n.userData.audio); } }); toStop.forEach(a=>{ try{ a.stop(); }catch(_){} }); }
 
     // ----------------- Controlador de personaje (abstraído) -----------------
     const input = { keys:{}, pointerLocked:false, isXR:false };
@@ -1287,7 +1288,7 @@
       createElement: (tag)=>createProxiedNode(tag),
       create(tag, attrs={}, children=[]) { const node=createProxiedNode(tag); Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,v)); children.forEach(ch=>node.appendChild(ch)); return node; },
       appendChild(child){ if(!virtualDOM){ console.warn('No virtualDOM'); return; } virtualDOM.children.push(child); buildSceneFromVirtual(child, scene); scheduleDevToolUpdate(); },
-      remove(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return; removeNodeByKey(virtualDOM, v.key); const obj=nodeKeyToObject.get(v.key); if(obj&&obj.parent) obj.parent.remove(obj); nodeKeyToObject.delete(v.key); scheduleDevToolUpdate(); },
+      remove(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return; removeNodeByKey(virtualDOM, v.key); const obj=nodeKeyToObject.get(v.key); if(obj){ stopAudioRecursive(obj); if(obj.parent) obj.parent.remove(obj); } nodeKeyToObject.delete(v.key); scheduleDevToolUpdate(); },
       find(selector){ if(!selector) return []; if(selector.startsWith('#')){ const v=idToVNode.get(selector.slice(1)); return v ? [createProxiedNode(v)] : []; } if(selector.startsWith('.')){ const set=classToVNodes.get(selector.slice(1)); return set ? Array.from(set).map(v=>createProxiedNode(v)) : []; } const out=[]; (function walk(v){ if(!v) return; if(v.tag===selector) out.push(createProxiedNode(v)); (v.children||[]).forEach(walk); })(virtualDOM); return out; },
       getObjectFor(nodeOrId){ let v=(typeof nodeOrId==='string')? idToVNode.get(nodeOrId): nodeOrId; if(!v) return null; return nodeKeyToObject.get(v.key)||null; },
       behavior(name,factory){ behaviorRegistry.set(name, factory); },
@@ -1387,7 +1388,7 @@
 
     async function importHSMLFromString(hsml){
       if (typeof hsml === 'string') { hsml = hsml.replace(/<\\\/script>/g, '<\/script>'); }
-      scene.children.slice().forEach(obj=>{ const keep = (obj===gridHelper)||(obj===axesHelper)||(obj===ambientLight)||(obj===dirLight)||(obj===xrRig); if(!keep) scene.remove(obj); });
+      scene.children.slice().forEach(obj=>{ const keep = (obj===gridHelper)||(obj===axesHelper)||(obj===ambientLight)||(obj===dirLight)||(obj===xrRig); if(!keep){ stopAudioRecursive(obj); scene.remove(obj); } });
       nodeKeyToObject.clear(); VirtualNode.nextKey=1; userUpdateFunctions.clear(); clearColliders();
 
       const parsed = parseHSMLRootFromString(hsml);
@@ -1453,12 +1454,30 @@
 
     function runSandbox(code){
       try {
+        function currentURL(){
+          try{
+            if (!lastHSMLSource) return new URL(window.location.origin);
+            if (lastHSMLSource.type === 'url') return new URL(lastHSMLSource.value, window.location.origin);
+          }catch(_){}
+          return null; // inline HSML
+        }
         const sandboxLocation = {
-          get href(){ return window.location.href; },
+          // Full href of the HSML source (not the #level hash)
+          get href(){ const u=currentURL(); return u ? u.href : 'inline:hsml'; },
           set href(v){ sandboxNavigate(String(v)); },
           assign(v){ sandboxNavigate(String(v), false); },
           replace(v){ sandboxNavigate(String(v), true); },
-          reload(){ if(!lastHSMLSource) return; if(lastHSMLSource.type==='url'){ sandboxNavigate(lastHSMLSource.value, true); } else { importHSMLFromString(lastHSMLSource.value); } }
+          reload(){ if(!lastHSMLSource) return; if(lastHSMLSource.type==='url'){ sandboxNavigate(lastHSMLSource.value, true); } else { importHSMLFromString(lastHSMLSource.value); } },
+          // Location-like accessors mapped from current HSML URL
+          get origin(){ const u=currentURL(); return u ? u.origin : window.location.origin; },
+          get protocol(){ const u=currentURL(); return u ? u.protocol : window.location.protocol; },
+          get host(){ const u=currentURL(); return u ? u.host : window.location.host; },
+          get hostname(){ const u=currentURL(); return u ? u.hostname : window.location.hostname; },
+          get port(){ const u=currentURL(); return u ? u.port : window.location.port; },
+          get pathname(){ const u=currentURL(); return u ? u.pathname : '/'; },
+          get search(){ const u=currentURL(); return u ? u.search : ''; },
+          get hash(){ const u=currentURL(); return u ? u.hash : ''; },
+          toString(){ return this.href; }
         };
         const fn=new Function('dimension','setUpdate','setTimeout','setInterval','location', code);
         fn(dimension, setUpdate, setTimeout, setInterval, sandboxLocation);
