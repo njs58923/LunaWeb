@@ -190,7 +190,7 @@
     // ----------------- HSML root helpers (hsml/head/space) -----------------
     const globalState = {};
     function extractHeadData(headEl){
-      const meta = { position:null, scale:null, rotation:null };
+      const meta = { position:null, scale:null, rotation:null, spawn:null };
       const extraChildren = [];
       if(!headEl) return { meta, extraChildren };
       const metas = headEl.getElementsByTagName('meta');
@@ -201,6 +201,11 @@
         if(t==='position') meta.position = {x,y,z};
         else if(t==='scale') meta.scale = {x,y,z};
         else if(t==='rotation') meta.rotation = {x,y,z};
+        else if(t==='spawn'){
+          const yaw = parseFloat(m.getAttribute('yaw'));
+          const pitch = parseFloat(m.getAttribute('pitch'));
+          meta.spawn = { x: m.hasAttribute('x')?x:undefined, y: m.hasAttribute('y')?y:undefined, z: m.hasAttribute('z')?z:undefined, yaw: isNaN(yaw)?undefined:yaw, pitch: isNaN(pitch)?undefined:pitch };
+        }
       }
       const states = headEl.getElementsByTagName('state');
       for(let i=0;i<states.length;i++){
@@ -230,11 +235,11 @@
         if(meta.scale && meta.scale.x===meta.scale.y && meta.scale.y===meta.scale.z){ vnode.setAttribute('scale', meta.scale.x); }
         if(meta.rotation){ vnode.setAttribute('rx', meta.rotation.x); vnode.setAttribute('ry', meta.rotation.y); vnode.setAttribute('rz', meta.rotation.z); }
         vnode.children = [...extraChildren, ...vnode.children];
-        return { vnode };
+        return { vnode, meta };
       } else {
         const spaceXML = xml.getElementsByTagName('space')[0];
         if(!spaceXML) return { vnode:null };
-        return { vnode: parseHSML(spaceXML) };
+        return { vnode: parseHSML(spaceXML), meta: { position:null, scale:null, rotation:null, spawn:null } };
       }
     }
 
@@ -1370,12 +1375,19 @@
       applyTransformsRecursively(virtualDOM);
       updateColliderAABBs();
 
-      player.position.set(0, player.eyeHeight, 6);
+      // Spawn del jugador: meta spawn o centro del <space> root
+      const metaSpawn = (parsed && parsed.meta && parsed.meta.spawn) ? parsed.meta.spawn : null;
+      const rootX = parseFloat(virtualDOM?.attributes?.x ?? 0) || 0;
+      const rootZ = parseFloat(virtualDOM?.attributes?.z ?? 0) || 0;
+      const sx = (metaSpawn && metaSpawn.x !== undefined) ? metaSpawn.x : rootX;
+      const sy = (metaSpawn && metaSpawn.y !== undefined) ? metaSpawn.y : player.eyeHeight;
+      const sz = (metaSpawn && metaSpawn.z !== undefined) ? metaSpawn.z : rootZ;
+      player.position.set(sx, sy, sz);
       const gy = getGroundHeightAt(player.position.x, player.position.z);
       if (player.position.y - player.eyeHeight < gy) { player.position.y = gy + player.eyeHeight; }
       player.velY=0; player.grounded=false; 
       xrRig.position.set(player.position.x, player.position.y - player.eyeHeight, player.position.z);
-      if(!input.isXR){ camera.position.set(0, player.eyeHeight, 0); yaw=0; pitch=0; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); }
+      if(!input.isXR){ camera.position.set(0, player.eyeHeight, 0); yaw = (metaSpawn && metaSpawn.yaw !== undefined) ? metaSpawn.yaw : 0; pitch = (metaSpawn && metaSpawn.pitch !== undefined) ? metaSpawn.pitch : 0; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); }
     }
 
     // Track last HSML source to support sandbox navigation-like behavior
