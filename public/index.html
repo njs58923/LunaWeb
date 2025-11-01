@@ -428,7 +428,64 @@
       const classList=(a.class||'').split(/\s+/).filter(Boolean);
 
       if (tag==='group' || tag==='space') { obj=new THREE.Object3D(); }
-      else if (tag==='include') { obj=new THREE.Object3D(); const src=a.src; if(src){ try{ const res=await fetch(src); const text=await res.text(); const parsed=parseHSMLRootFromString(text); const incRoot=parsed.vnode; if(incRoot){ (incRoot.children||[]).forEach(ch=>vnode.appendChild(ch)); for(const ch of incRoot.children){ await buildSceneFromVirtual(ch, obj); } reindexVirtualDOM(); scheduleDevToolUpdate(); } }catch(e){ console.error('Include load error', src, e); } } }
+      else if (tag==='include') {
+        obj = new THREE.Object3D();
+        const includeUrl = a.src;
+        if (includeUrl) {
+          try {
+            const res = await fetch(includeUrl);
+            const text = await res.text();
+            const parsed = parseHSMLRootFromString(text);
+            const incRoot = parsed.vnode;
+            if (incRoot) {
+              (incRoot.children || []).forEach(ch => vnode.appendChild(ch));
+              for (const ch of incRoot.children) {
+                await buildSceneFromVirtual(ch, obj);
+              }
+              // Asegurar que los IDs del include estén indexados antes de correr scripts
+              reindexVirtualDOM();
+              scheduleDevToolUpdate();
+              // Ejecutar scripts del HSML incluido (inline, src o code="...")
+              try {
+                const xml = new DOMParser().parseFromString(text, 'text/xml');
+                let scriptNodes = [];
+                const hsmlEl = xml.getElementsByTagName('hsml')[0] || null;
+                if (hsmlEl) {
+                  scriptNodes = Array.from(hsmlEl.getElementsByTagName('script'));
+                } else {
+                  const spaceEl = xml.getElementsByTagName('space')[0] || null;
+                  if (spaceEl) scriptNodes = Array.from(spaceEl.getElementsByTagName('script'));
+                }
+                if (scriptNodes.length) {
+                  for (const node of scriptNodes) {
+                    const ssrc = node.getAttribute('src');
+                    const codeAttr = node.getAttribute('code');
+                    const inline = (node.textContent || '').trim();
+                    if (ssrc) {
+                      const abs = new URL(ssrc, includeUrl).toString();
+                      fetch(abs)
+                        .then(r => r.text())
+                        .then(code => runSandbox(code))
+                        .catch(err => console.error('Script load error', abs, err));
+                    } else if (codeAttr && codeAttr.trim()) {
+                      runSandbox(codeAttr);
+                    } else if (inline) {
+                      runSandbox(inline);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('Include script error', includeUrl, e);
+              }
+              // Reindexar nuevamente tras posibles mutaciones de scripts
+              reindexVirtualDOM();
+              scheduleDevToolUpdate();
+            }
+          } catch (e) {
+            console.error('Include load error', includeUrl, e);
+          }
+        }
+      }
       else if (tag==='model') { obj=new THREE.Object3D(); const src=a.src; if(src){ getGLTFScene(src).then(sceneChild=>{ while(obj.children.length>0) obj.remove(obj.children[0]); obj.add(sceneChild); }).catch(err=>console.error('GLTF load error',src,err)); } }
       else if (tag==='box') { const w=parseFloat(a.width??1), h=parseFloat(a.height??1), d=parseFloat(a.depth??1); const geo=new THREE.BoxGeometry(w,h,d); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
       else if (tag==='sphere'){ const r=parseFloat(a.radius??0.5), ws=parseInt(a.widthSegments??16), hs=parseInt(a.heightSegments??12); const geo=new THREE.SphereGeometry(r,ws,hs); obj=new THREE.Mesh(geo, getDefaultMaterial(a)); }
