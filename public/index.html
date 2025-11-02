@@ -1258,8 +1258,8 @@ class VRPlayer extends PlayerBase {
     const rightGp = xrSources.right?.gamepad || null;
 
     // ===== Lectura de sticks =====
-    let lx = getAxisSafe(leftGp,  2, 0); // strafe
-    let ly = getAxisSafe(leftGp,  3, 1); // forward/back
+    let lx = getAxisSafe(leftGp,  2, 0); // X
+    let ly = getAxisSafe(leftGp,  3, 1); // Y
     let rx = getAxisSafe(rightGp, 2, 0); // yaw
 
     // Zonas muertas
@@ -1283,19 +1283,8 @@ class VRPlayer extends PlayerBase {
     const dir   = new THREE.Vector3(0, 0, -1).applyQuaternion(headQuat).setY(0).normalize(); // adelante cabeza
     const right = new THREE.Vector3(1, 0,  0).applyQuaternion(headQuat).setY(0).normalize(); // derecha cabeza
 
-    // ===== Autocalibración de signos (una vez) =====
-    if (!axisSign.calibrated && (Math.abs(lx) > 0.6 || Math.abs(ly) > 0.6)) {
-      const tF = dir.clone().multiplyScalar(-ly);
-      axisSign.y = (tF.dot(dir) >= 0) ? 1 : -1;
-
-      const tS = right.clone().multiplyScalar(lx);
-      axisSign.x = (tS.dot(right) >= 0) ? 1 : -1;
-
-      axisSign.calibrated = true;
-    }
-
-    lx *= axisSign.x;
-    ly *= axisSign.y;
+    if (AXIS.invertX) lx = -lx;
+    if (AXIS.invertY) ly = -ly;
 
     // ===== Posición real del HMD (no mover rig por físico) =====
     const headWorld = getHeadWorld();
@@ -1304,8 +1293,8 @@ class VRPlayer extends PlayerBase {
     // ===== Desplazamiento por stick (artificial) =====
     const baseSpeed = this.speed;
     const stickVec = new THREE.Vector3()
-      .addScaledVector(dir,   ly * baseSpeed * dt)
-      .addScaledVector(right,  -lx * baseSpeed * dt);
+      .addScaledVector(dir,   -ly * baseSpeed * dt) // empujar hacia adelante (ly<0) te mueve +dir
+      .addScaledVector(right,  lx * baseSpeed * dt);
 
     // ===== Colisiones: "el collider sigue a la cabeza" =====
     // P0: solo física (sin stick) — dónde estaría el collider bajo la cabeza
@@ -1432,7 +1421,7 @@ class VRPlayer extends PlayerBase {
 
     // ----------------- VR: entrada y locomoción -----------------
     const xrSources = { left: null, right: null };
-    const axisSign = { x: 1, y: 1, calibrated: false };
+    const AXIS = { invertX: false, invertY: false };
 
     function bindXRInputSources() {
       const session = renderer.xr.getSession();
@@ -1560,7 +1549,6 @@ class VRPlayer extends PlayerBase {
 
     renderer.xr.addEventListener('sessionstart', () => {
       input.isXR = true;
-      axisSign.x = 1; axisSign.y = 1; axisSign.calibrated = false;
 
       player = new VRPlayer(env);
       player._prevHeadWorld = getHeadWorld().clone();
@@ -1582,7 +1570,6 @@ class VRPlayer extends PlayerBase {
 
     renderer.xr.addEventListener('sessionend', () => {
       input.isXR = false;
-      axisSign.x = 1; axisSign.y = 1; axisSign.calibrated = false;
       player = new DesktopPlayer(env);
       controllerState.update = (dt) => player.update(dt);
       xrRig.rotation.set(0, 0, 0);
