@@ -388,7 +388,11 @@
               let m = vnodeEventHandlers.get(target); if (!m) { m = new Map(); vnodeEventHandlers.set(target, m); }
               if (!m.has(event)) m.set(event, new Set());
               m.get(event).add(handler);
-              if (event === 'toque') { interactiveKeys.add(target.key); const o = nodeKeyToObject.get(target.key); if (o) interactiveObjects.add(o); }
+              if (String(event).startsWith('toque')) {
+                interactiveKeys.add(target.key);
+                const o = nodeKeyToObject.get(target.key);
+                if (o) interactiveObjects.add(o);
+              }
             };
           }
           if (prop === 'removeEventListener') { return (event, handler) => { const m = vnodeEventHandlers.get(target); if (!m) return; const s = m.get(event); if (s) s.delete(handler); }; }
@@ -1353,8 +1357,23 @@ class VRPlayer extends PlayerBase {
 
     const controllerState = { update: (dt) => player.update(dt), enabled: true };
 
-    document.addEventListener('keydown', e => { input.keys[e.code] = true; emit('key:down', e); if (e.code === 'KeyR') loadHSML(); });
-    document.addEventListener('keyup', e => { input.keys[e.code] = false; emit('key:up', e); });
+    document.addEventListener('keydown', e => {
+      input.keys[e.code] = true;
+      emit('key:down', e);
+      if (e.code === 'KeyR') loadHSML();
+
+      if (e.code === 'Space' || e.code === 'Enter') {
+        startToque('key'); 
+      }
+    });
+    document.addEventListener('keyup', e => {
+      input.keys[e.code] = false;
+      emit('key:up', e);
+
+      if (e.code === 'Space' || e.code === 'Enter') {
+        endToque('key');
+      }
+    });
 
     function emitUseFromPointer(source, ctrl = null) {
       let hit = null;
@@ -1366,12 +1385,30 @@ class VRPlayer extends PlayerBase {
       emit('input:use', { source, hit });
     }
 
-    canvas.addEventListener('mousedown', () => { if (document.pointerLockElement !== canvas) canvas.requestPointerLock(); emitUseFromPointer('mouse'); emitTouchFromPointer('mouse'); });
-    try { canvas.addEventListener('touchstart', () => { emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }, { passive: true }); }
-    catch (_) { canvas.addEventListener('touchstart', () => { emitUseFromPointer('touch'); emitTouchFromPointer('touch'); }); }
+    canvas.addEventListener('mousedown', () => {
+      if (document.pointerLockElement !== canvas) canvas.requestPointerLock();
+      emitUseFromPointer('mouse');
+      startToque('mouse');
+    });
+    window.addEventListener('mouseup', () => endToque('mouse'));
+
+    try {
+      canvas.addEventListener('touchstart', () => {
+        emitUseFromPointer('touch');
+        startToque('touch');
+      }, { passive: true });
+    } catch (_) {
+      canvas.addEventListener('touchstart', () => {
+        emitUseFromPointer('touch');
+        startToque('touch');
+      });
+    }
+    window.addEventListener('touchend', () => endToque('touch'));
+
     document.addEventListener('pointerlockchange', () => { input.pointerLocked = (document.pointerLockElement === canvas); document.getElementById('toggleFreeCameraBtn').textContent = input.pointerLocked ? 'Liberar Mouse' : 'Capturar Mouse'; });
     document.addEventListener('mousemove', e => { if (input.isXR) return; if (!input.pointerLocked) return; yaw -= e.movementX * mouseSensitivity; pitch -= e.movementY * mouseSensitivity; const maxP = Math.PI / 2 - 0.001; if (pitch > maxP) pitch = maxP; if (pitch < -maxP) pitch = -maxP; camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ')); emit('mouse:look', { yaw, pitch }); });
 
+    
     // Físicas/colliders
     const staticColliders = [];
     function addBoxColliderFor(obj, size) {
@@ -1482,8 +1519,17 @@ class VRPlayer extends PlayerBase {
       ctrl.addEventListener('disconnected', () => {
         while (ctrl.children.length) ctrl.remove(ctrl.children[0]);
       });
-      ctrl.addEventListener('selectstart', () => { emitUseFromPointer('vr', ctrl); emitTouchFromPointer('vr', ctrl); });
-      ctrl.addEventListener('select', () => { emitUseFromPointer('vr', ctrl); emitTouchFromPointer('vr', ctrl); });
+      ctrl.addEventListener('selectstart', () => {
+        emitUseFromPointer('vr', ctrl);
+        startToque('vr', ctrl);
+      });
+      ctrl.addEventListener('selectend', () => {
+        endToque('vr');
+      });
+      ctrl.addEventListener('select', () => {
+        emitUseFromPointer('vr', ctrl);
+      });
+
       xrRig.add(ctrl);
     });
     const controllerModelFactory = new XRControllerModelFactory();
@@ -1538,6 +1584,36 @@ class VRPlayer extends PlayerBase {
         }
       }
     }
+
+    const pressedTarget = new Map(); // source -> { vnode }
+
+    function getHitVNode(hit) {
+      if (!hit) return null;
+      return findVNodeFromObject(hit.object);
+    }
+
+    function startToque(source, ctrl = null) {
+      const hit = ctrl ? pickFromController(ctrl) : pickCenter();
+      const v = getHitVNode(hit);
+      if (v) {
+        emitToNode('toquedown', v, { source, ...hit });
+        pressedTarget.set(source, { vnode: v });
+        emitToNode('toque', v, { source, ...hit });
+      } else {
+        emit('toquedown', { source, ...hit });
+      }
+    }
+
+    function endToque(source) {
+      const cur = pressedTarget.get(source);
+      if (cur?.vnode) {
+        emitToNode('toqueup', cur.vnode, { source });
+      } else {
+        emit('toqueup', { source });
+      }
+      pressedTarget.delete(source);
+    }
+
 
     function emitTouchFromPointer(source, ctrl = null) {
       const hit = ctrl ? pickFromController(ctrl) : pickCenter();
