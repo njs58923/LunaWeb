@@ -1,0 +1,51 @@
+<hsml>
+  <head></head>
+
+  <space>
+    <include src="testing/houseTest.html" data-title="Sala principal"/>
+    <group id="hub" />
+  </space>
+
+  <script>
+    const links = [
+      { title: 'Sala de coliciones', to: '/testing/sampleColliders.html' },
+      { title: 'Sala de Sonido',     to: '/testing/sampleSound.html'    },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+      { title: 'Sala de Models',     to: '/testing/sampleModels.html'   },
+    ];
+
+    const startX = 1;  
+    const stepX  = -2;    
+    const z      = -5;   
+
+    links.forEach((item, i)=>{
+      const inc = dimension.create('include', {
+        src: 'utils/linkBox.html',
+        'data-title': item.title,
+        'data-to': item.to,
+        x: startX + i * stepX,
+        z
+      });
+      dimension.appendChild(inc);
+    });
+  </script>
+</hsml>
