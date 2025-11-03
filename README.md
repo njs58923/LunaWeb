@@ -2,7 +2,39 @@
 # Luna Web Framework (v3.2 • Espacios Virtuales)
 
 Renderizador 3D con **Three.js**, un **mini-DOM virtual (HSML)** para describir escenas, y entrada unificada para **Desktop y WebXR (VR)**.
-Incluye físicas ligeras, audio posicional gestionado, DevTools avanzados y soporte de **favoritos e inicio persistente**.
+Incluye físicas ligeras, audio posicional gestionado, DevTools avanzados y soporte de **lugar de inicio**.
+
+---
+
+## 🚀 Demo interactiva (Web / WebXR / Quest 2)
+
+**Probar directamente en el navegador:**
+
+👉 [**Abrir demo**](https://njs58923.github.io/LunaWeb/#level=%2FLunaWeb%2Fsample.html)
+(Compatible con **Desktop**, **VR (WebXR)** y **Meta Quest 2**)
+
+La demo carga un espacio HSML con luces, objetos interactivos y un enlace a una sala de pruebas.
+Podés usar **WASD + ratón** en escritorio o controladores VR en Quest.
+
+```html
+<!-- Ejemplo: LunaWeb/testing/sample.html -->
+<hsml>
+  <head>
+    <light type="ambient" intensity="0.65"/>
+    <light type="directional" intensity="1.2"/>
+  </head>
+
+  <space>
+    <include
+      src="/LunaWeb/utils/linkBox.html"
+      data-to="/LunaWeb/testing/sample.html"
+      data-title="Sala de Pruebas"
+      z="-5"/>
+  </space>
+</hsml>
+```
+
+💡 **Tip:** Los archivos `.html` de ejemplo en `/LunaWeb/testing/` pueden abrirse directamente desde el navegador pero solo sirven dentro del entorno **Luna Web**.
 
 ---
 
